@@ -1,0 +1,45 @@
+.scallop-indicator {
+  position: absolute;
+  top: -8px;
+  bottom: -8px;
+  right: 0;
+  left: -24px; /* Sticks out to the left */
+  background-color: var(--color-cafe-bg);
+  border-top-left-radius: 55px;
+  border-bottom-left-radius: 55px;
+  z-index: 0;
+}
+
+/* 2. Create the top inner curve */
+.scallop-indicator::before {
+  content: "";
+  position: absolute;
+  right: 0;           /* Aligns to the base edge */
+  top: -32px;         /* Move it exactly above the active item */
+  width: 32px;
+  height: 32px;
+  background-color: transparent;
+  
+  /* Curve the bottom-right corner of this empty box */
+  border-bottom-right-radius: 16px; 
+  
+  /* Cast a solid shadow down and right to fill the corner */
+  box-shadow: 16px 16px 0 16px var(--color-cafe-bg); 
+}
+
+/* 3. Create the bottom inner curve */
+.scallop-indicator::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  bottom: -32px;      /* Move it exactly below the active item */
+  width: 32px;
+  height: 32px;
+  background-color: transparent;
+  
+  /* Curve the top-right corner of this empty box */
+  border-top-right-radius: 16px;
+  
+  /* Cast a solid shadow up and right to fill the corner */
+  box-shadow: 16px -16px 0 16px var(--color-cafe-bg);
+}
