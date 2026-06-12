@@ -24,6 +24,15 @@ export default function CustomerMenu() {
   }, [fetchMenu]);
 
   useEffect(() => {
+    if (categories.length > 0) {
+      const exists = categories.some(c => c.id === activeCategoryId);
+      if (!exists) {
+        setActiveCategoryId(categories[0].id);
+      }
+    }
+  }, [categories, activeCategoryId]);
+
+  useEffect(() => {
     if (scrollContainerRef.current) {
       scrollContainerRef.current.scrollTo(0, 0);
     }

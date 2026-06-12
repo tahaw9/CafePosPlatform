@@ -51,7 +51,7 @@ public static class TestApp
 
         var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
 
-        var user = new ApplicationUser { UserName = userName, Email = userName };
+        var user = new ApplicationUser { UserName = userName, Email = userName, PhoneNumber = "09123456789" };
 
         var result = await userManager.CreateAsync(user, password);
 

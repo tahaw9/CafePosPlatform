@@ -8,10 +8,11 @@ interface ThermalReceiptProps {
   total: number;
   tableId: string;
   orderId?: string;
+  orderCode?: number;
 }
 
 const ThermalReceipt = forwardRef<HTMLDivElement, ThermalReceiptProps>(
-  ({ cart, subtotal, discountAmount, total, tableId, orderId }, ref) => {
+  ({ cart, subtotal, discountAmount, total, tableId, orderId, orderCode }, ref) => {
     const dateStr = new Date().toLocaleDateString('fa-IR');
     const timeStr = new Date().toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' });
 
@@ -26,11 +27,15 @@ const ThermalReceipt = forwardRef<HTMLDivElement, ThermalReceiptProps>(
           <div className="text-xs text-gray-500 mt-1">
             صندوق‌دار: ادمین
           </div>
-          {orderId && (
+          {orderCode ? (
+            <div className="text-sm font-bold mt-1 text-gray-700">
+              شماره سفارش: <span className="font-mono">{orderCode}</span>
+            </div>
+          ) : orderId ? (
             <div className="text-sm font-bold mt-1 text-gray-700">
               شماره سفارش: <span className="font-mono">{orderId.replace('ORD-', '')}</span>
             </div>
-          )}
+          ) : null}
           <div className="flex justify-between text-xs mt-2">
             <span>{dateStr}</span>
             <span>{timeStr}</span>

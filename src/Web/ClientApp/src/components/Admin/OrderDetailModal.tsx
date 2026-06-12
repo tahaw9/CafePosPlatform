@@ -20,10 +20,10 @@ export default function OrderDetailModal({ order, onClose }: OrderDetailModalPro
           <div className="flex justify-between items-center p-6 border-b border-gray-100">
             <div>
               <Dialog.Title className="text-xl font-bold text-gray-900">
-                سفارش #{order.id.replace('ORD-', '')}
+                سفارش #{order.orderCode}
               </Dialog.Title>
               <Dialog.Description className="text-sm text-gray-500 mt-1">
-                {order.tableId === 'takeaway' ? 'بیرون‌بر' : `میز ${order.tableId}`} • {new Date(order.createdAt).toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' })}
+                {order.tableNumber ? `میز ${order.tableNumber}` : 'بیرون‌بر'} • {new Date(order.createdAt).toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' })}
               </Dialog.Description>
             </div>
             <Dialog.Close asChild>

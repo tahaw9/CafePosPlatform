@@ -1,4 +1,5 @@
 using CafePosBackend.Application.Cafe.Commands.RequestWaiter;
+using CafePosBackend.Application.Cafe.Commands.NewOrder;
 using CafePosBackend.Application.Common.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
@@ -62,6 +63,15 @@ public class CafeHub : Hub<ICafeHubClient>
     public async Task RequestWaiter(string tableId)
     {
         await _sender.Send(new RequestWaiterCommand { TableId = tableId });
+    }
+
+    /// <summary>
+    /// Frontend calls: connection.invoke("NewOrder", tableId)
+    /// Dispatches to NewOrderCommandHandler via MediatR.
+    /// </summary>
+    public async Task NewOrder(string tableId)
+    {
+        await _sender.Send(new NewOrderCommand { TableId = tableId });
     }
 }
 

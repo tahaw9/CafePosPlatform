@@ -1,8 +1,13 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Trash2, Plus, Minus } from 'lucide-react';
 import { useCartStore } from '../../store/useCartStore';
 import toast from 'react-hot-toast';
+import { useParams } from 'react-router-dom';
+import { HubConnectionBuilder, HubConnection, LogLevel } from '@microsoft/signalr';
+import api from '../../lib/api';
+import { createOrder } from '../../lib/orderService';
+import { getTables, TableDto } from '../../lib/tableService';
 
 interface CartModalProps {
   isOpen: boolean;
@@ -12,14 +17,98 @@ interface CartModalProps {
 
 export default function CartModal({ isOpen, onClose, tableId }: CartModalProps) {
   const { items, removeItem, updateQuantity, clearCart, totalAmount } = useCartStore();
+  const { tableId: routeTableId } = useParams();
+  const activeTableId = tableId || routeTableId || '1';
 
-  const handleCheckout = () => {
-    // Mock POST to API
+  const [connection, setConnection] = useState<HubConnection | null>(null);
+  const [tables, setTables] = useState<TableDto[]>([]);
+
+  useEffect(() => {
+    // Connect to SignalR
+    const baseURL = api.defaults.baseURL || '';
+    const backendOrigin = baseURL.endsWith('/api') ? baseURL.slice(0, -4) : baseURL;
+    const signalRUrl = `${backendOrigin}/hubs/cafeHub`;
+    
+    console.log("Connecting to SignalR in CartModal at:", signalRUrl);
+
+    const newConnection = new HubConnectionBuilder()
+      .withUrl(signalRUrl)
+      .configureLogging(LogLevel.Information)
+      .withAutomaticReconnect()
+      .build();
+
+    newConnection.start()
+      .then(() => {
+        console.log('CartModal connected to SignalR cafeHub');
+      })
+      .catch((e) => {
+        console.error('CartModal failed to connect to SignalR hub:', e);
+      });
+
+    setConnection(newConnection);
+
+    // Fetch tables for Guid mapping
+    getTables()
+      .then(data => {
+        setTables(data);
+      })
+      .catch(err => {
+        console.error('Failed to load tables in CartModal:', err);
+      });
+
+    return () => {
+      newConnection.stop();
+    };
+  }, []);
+
+  const handleCheckout = async () => {
     if (items.length === 0) return;
     
-    toast.success('سفارش شما با موفقیت ثبت شد!');
-    clearCart();
-    onClose();
+    try {
+      // Find the corresponding Guid for the table name or table ID
+      const matchedTable = tables.find(t => 
+        t.name === `میز ${activeTableId}` || 
+        t.name.endsWith(` ${activeTableId}`) || 
+        t.id === activeTableId
+      );
+      
+      const resolvedTableGuid = matchedTable ? matchedTable.id : null;
+
+      // Construct backend request
+      const orderPayload = {
+        tableId: resolvedTableGuid,
+        total: totalAmount(),
+        status: 'pending',
+        items: items.map(item => ({
+          productId: item.menuItemId,
+          productName: item.name,
+          unitPrice: item.price,
+          quantity: item.quantity,
+          note: item.note || undefined
+        }))
+      };
+
+      await createOrder(orderPayload);
+
+      // Notify backend about new order via SignalR
+      if (connection && connection.state === 'Connected') {
+        try {
+          await connection.invoke('NewOrder', activeTableId);
+        } catch (hubErr) {
+          console.error('Failed to broadcast NewOrder via SignalR:', hubErr);
+        }
+      }
+
+      toast.success('سفارش شما با موفقیت ثبت شد!');
+      clearCart();
+      onClose();
+    } catch (error: any) {
+      const message = error?.response?.data?.title
+        || error?.response?.data?.detail
+        || error?.message
+        || 'خطا در ثبت سفارش';
+      toast.error(message);
+    }
   };
 
   return (

@@ -1,34 +1,69 @@
 import api from './api';
 
-// ──────────────────────────────────────────────
-// Types matching the backend CreateProductCommand
-// ──────────────────────────────────────────────
-
 export interface CreateProductRequest {
   name: string;
   price: number;
   imageUrl: string;
   isAvailable: boolean;
   description?: string;
-  categoryId: string; // Guid as string
+  categoryId: string;
 }
 
-// The backend returns Created<Guid> → { value: "guid-string" }
-// The response body is the Guid itself (the id of the created product).
-export interface CreateProductResponse {
-  value: string;
+export interface UpdateProductRequest {
+  id: string;
+  name: string;
+  price: number;
+  imageUrl: string;
+  isAvailable: boolean;
+  description?: string;
+  categoryId: string;
 }
 
-// ──────────────────────────────────────────────
-// API functions — endpoint: POST /api/Products
-// ──────────────────────────────────────────────
+export interface ProductDto {
+  id: string;
+  name: string;
+  price: number;
+  imageUrl: string | null;
+  isAvailable: boolean;
+  description: string | null;
+  categoryId: string;
+  categoryName: string | null;
+}
 
-/**
- * Calls `POST /api/Products` (the CreateProduct minimal-API endpoint).
- * Returns the new product's ID (Guid).
- */
+export interface CategoryDto {
+  id: string;
+  name: string;
+  icon: string | null;
+}
+
 export async function createProduct(data: CreateProductRequest): Promise<string> {
-  // TypedResults.Created<Guid> returns status 201 with the Guid in the body
   const response = await api.post<string>('/Products', data);
+  return response.data;
+}
+
+export async function getProducts(filters?: { categoryId?: string; isAvailable?: boolean }): Promise<ProductDto[]> {
+  const response = await api.get<ProductDto[]>('/Products', {
+    params: filters
+  });
+  return response.data;
+}
+
+export async function getCategories(): Promise<CategoryDto[]> {
+  const response = await api.get<CategoryDto[]>('/Categories');
+  return response.data;
+}
+
+export async function updateProduct(data: UpdateProductRequest): Promise<boolean> {
+  const response = await api.put<boolean>('/Products', data);
+  return response.data;
+}
+
+export async function changeProductAvailability(id: string): Promise<boolean> {
+  const response = await api.put<boolean>(`/Products/ChangeAvailability/${id}`);
+  return response.data;
+}
+
+export async function deleteProduct(id: string): Promise<boolean> {
+  const response = await api.delete<boolean>(`/Products/${id}`);
   return response.data;
 }

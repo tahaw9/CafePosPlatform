@@ -7,7 +7,7 @@ import toast from 'react-hot-toast';
 import Dropdown from '../components/Admin/Dropdown';
 
 export default function AdminInventory() {
-  const { items, categories, fetchMenu, addItem, updateItem, deleteItem, toggleItemAvailability, isSubmitting } = useMenuStore();
+  const { items, categories, fetchMenu, addItem, updateItem, deleteItem, toggleItemAvailability, isSubmitting, isLoading } = useMenuStore();
   
   const [searchQuery, setSearchQuery] = useState('');
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
@@ -24,14 +24,20 @@ export default function AdminInventory() {
     isAvailable: true,
   });
 
-  const isStoreInitialized = React.useRef(false);
-
   React.useEffect(() => {
-    if (!isStoreInitialized.current && items.length === 0) {
-      fetchMenu();
-      isStoreInitialized.current = true;
-    }
-  }, [items.length, fetchMenu]);
+    fetchMenu();
+  }, [fetchMenu]);
+
+  if (isLoading && items.length === 0) {
+    return (
+      <div className="flex-grow flex items-center justify-center bg-gray-50 h-full min-h-[300px]">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-12 h-12 border-4 border-[#0f3229] border-t-transparent rounded-full animate-spin" />
+          <span className="text-gray-500 font-bold text-sm">در حال دریافت منو...</span>
+        </div>
+      </div>
+    );
+  }
 
   // Handle open modal for create
   const openCreateModal = () => {
@@ -88,7 +94,7 @@ export default function AdminInventory() {
 
     try {
       if (editingItem) {
-        updateItem(editingItem.id, payload);
+        await updateItem(editingItem.id, payload);
         toast.success('محصول با موفقیت ویرایش شد');
       } else {
         await addItem(payload);
@@ -100,11 +106,15 @@ export default function AdminInventory() {
     }
   };
 
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (deleteItemId) {
-      deleteItem(deleteItemId);
-      toast.success('محصول با موفقیت حذف شد');
-      setDeleteItemId(null);
+      try {
+        await deleteItem(deleteItemId);
+        toast.success('محصول با موفقیت حذف شد');
+        setDeleteItemId(null);
+      } catch {
+        // Error toast is already shown by the store
+      }
     }
   };
 
@@ -167,7 +177,14 @@ export default function AdminInventory() {
                     <td className="p-4 text-right">{item.price.toLocaleString()}</td>
                     <td className="p-4 text-right">
                       <button 
-                        onClick={() => toggleItemAvailability(item.id)}
+                        onClick={async () => {
+                          try {
+                            await toggleItemAvailability(item.id);
+                            toast.success('وضعیت موجودی محصول بروزرسانی شد');
+                          } catch {
+                            // Error toast is already handled by the store
+                          }
+                        }}
                         className={`px-4 py-2 rounded-xl text-sm font-bold transition-colors w-24 text-center ${item.isAvailable ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-red-100 text-red-700 hover:bg-red-200'}`}
                       >
                         {item.isAvailable ? 'موجود' : 'ناموجود'}

@@ -10,14 +10,14 @@ import * as Dialog from '@radix-ui/react-dialog';
 
 export default function AdminPOS() {
   const { items, categories, fetchMenu } = useMenuStore();
-  const { orders, addOrder, tables, updateOrderStatus } = useOrderStore();
+  const { orders, addOrder, tables, updateOrderStatus, updateOrder, fetchOrderById } = useOrderStore();
   const location = useLocation();
   const navigate = useNavigate();
   
-  const queryParams = new URLSearchParams(location.search);
-  const editingOrderId = queryParams.get('orderId');
-  
-  const editingOrder = orders.find(o => o.id === editingOrderId);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
+  const [editingOrder, setEditingOrder] = useState<any | null>(null);
+  const [loadingOrder, setLoadingOrder] = useState(false);
 
   const [activeCategory, setActiveCategory] = useState<string>('coffee');
   const [cart, setCart] = useState<OrderItem[]>([]);
@@ -47,18 +47,59 @@ export default function AdminPOS() {
   }, [fetchMenu, items.length]);
 
   useEffect(() => {
-    if (editingOrder) {
-      setCart(editingOrder.items);
-      setSelectedTable(editingOrder.tableId);
-      if (editingOrder.discount) {
-        setDiscountType(editingOrder.discount.type);
-        setDiscountValue(editingOrder.discount.value.toString());
-      }
-      if (editingOrder.paymentMethod) {
-        setPaymentMethod(editingOrder.paymentMethod);
+    if (categories.length > 0) {
+      const exists = categories.some(c => c.id === activeCategory);
+      if (!exists) {
+        const coffeeCat = categories.find(c => c.icon.toLowerCase() === 'coffee' || c.name.includes('قهوه'));
+        if (coffeeCat) {
+          setActiveCategory(coffeeCat.id);
+        } else {
+          setActiveCategory(categories[0].id);
+        }
       }
     }
-  }, [editingOrder]);
+  }, [categories, activeCategory]);
+
+  useEffect(() => {
+    const queryParams = new URLSearchParams(location.search);
+    const orderId = queryParams.get('orderId');
+    if (orderId) {
+      setIsEditMode(true);
+      setEditingOrderId(orderId);
+      
+      setLoadingOrder(true);
+      fetchOrderById(orderId).then(order => {
+        if (order) {
+          setEditingOrder(order);
+          setCart(order.items);
+          setSelectedTable(order.tableId);
+          if (order.discount) {
+            setDiscountType(order.discount.type);
+            setDiscountValue(order.discount.value.toString());
+          } else {
+            setDiscountType('amount');
+            setDiscountValue('');
+          }
+          if (order.paymentMethod) {
+            setPaymentMethod(order.paymentMethod);
+          }
+        } else {
+          toast.error('سفارش مورد نظر یافت نشد');
+          setIsEditMode(false);
+          setEditingOrderId(null);
+        }
+        setLoadingOrder(false);
+      });
+    } else {
+      setIsEditMode(false);
+      setEditingOrderId(null);
+      setEditingOrder(null);
+      setCart([]);
+      setDiscountValue('');
+      setSelectedTable('takeaway');
+      setPaymentMethod('card');
+    }
+  }, [location.search, fetchOrderById]);
 
   const addToCart = (product: any) => {
     setCart(prev => {
@@ -108,55 +149,69 @@ export default function AdminPOS() {
       isPaid
     };
 
-    if (editingOrder) {
-      useOrderStore.setState(state => ({
-        orders: state.orders.map(o => o.id === editingOrder.id ? { ...o, ...newOrderData, updatedAt: Date.now() } : o)
-      }));
-      toast.success('سفارش بروزرسانی شد');
-      
-      if (status === 'completed' || isPaid) {
-        handleOpenPreview();
-        setTimeout(() => {
-          navigate('/admin/dashboard');
-        }, 500);
-      } else {
-        navigate('/admin/dashboard');
-      }
+    if (isEditMode && editingOrderId) {
+      updateOrder(editingOrderId, newOrderData)
+        .then(() => {
+          toast.success('سفارش با موفقیت بروزرسانی شد');
+          
+          if (status === 'completed' || isPaid) {
+            handleOpenPreview();
+            setTimeout(() => {
+              navigate('/admin/dashboard');
+            }, 500);
+          } else {
+            navigate('/admin/dashboard');
+          }
+        })
+        .catch(() => {
+          // Error already handled
+        });
       return;
     }
 
-    addOrder(newOrderData);
-    toast.success('سفارش با موفقیت ثبت شد');
-    
-    // Call print when adding a new order
-    if (status === 'completed' || isPaid) {
-        handleOpenPreview();
-      
-      // Delay clearing to let the print frame capture the DOM
-      setTimeout(() => {
-        setCart([]);
-        setDiscountValue('');
-        setSelectedTable('takeaway');
-        setPaymentMethod('card');
-      }, 500);
-    } else {
-      setCart([]);
-      setDiscountValue('');
-      setSelectedTable('takeaway');
-      setPaymentMethod('card');
-    }
+    addOrder(newOrderData)
+      .then(() => {
+        toast.success('سفارش با موفقیت ثبت شد');
+        
+        // Call print when adding a new order
+        if (status === 'completed' || isPaid) {
+          handleOpenPreview();
+          
+          // Delay clearing to let the print frame capture the DOM
+          setTimeout(() => {
+            setCart([]);
+            setDiscountValue('');
+            setSelectedTable('takeaway');
+            setPaymentMethod('card');
+          }, 500);
+        } else {
+          setCart([]);
+          setDiscountValue('');
+          setSelectedTable('takeaway');
+          setPaymentMethod('card');
+        }
+      })
+      .catch(() => {
+        // Error already handled
+      });
   };
 
   const handleCancelOrder = () => {
-    if (editingOrder && window.confirm('آیا از لغو این سفارش اطمینان دارید؟')) {
-      updateOrderStatus(editingOrder.id, 'cancelled');
-      toast.success('سفارش لغو شد');
-      navigate('/admin/dashboard');
+    if (isEditMode && editingOrderId && window.confirm('آیا از لغو این سفارش اطمینان دارید؟')) {
+      updateOrderStatus(editingOrderId, 'cancelled').then(() => {
+        toast.success('سفارش لغو شد');
+        navigate('/admin/dashboard');
+      });
     }
   };
 
   return (
-    <div className="flex h-full rtl">
+    <div className="flex h-full rtl relative">
+      {loadingOrder && (
+        <div className="absolute inset-0 bg-white/70 z-50 flex items-center justify-center">
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#0f3229]"></div>
+        </div>
+      )}
       {/* Menu Grid */}
       <div className="flex-1 flex flex-col bg-gray-50 h-full hide-scrollbar overflow-hidden print:hidden">
         {/* Categories */}
@@ -198,7 +253,7 @@ export default function AdminPOS() {
       <div className="w-96 bg-white border-r border-gray-200 flex flex-col shrink-0 relative print:hidden">
         {editingOrder && (
           <div className="bg-amber-100 text-amber-800 p-2 text-center text-sm font-bold flex justify-between items-center">
-            <span>ویرایش سفارش #{editingOrder.id.replace('ORD-', '')}</span>
+            <span>ویرایش سفارش #{editingOrder.orderCode}</span>
             <button 
               onClick={() => navigate('/admin/dashboard')}
               className="px-2 py-1 bg-white rounded shadow-sm text-xs"
@@ -369,6 +424,7 @@ export default function AdminPOS() {
                   total={total}
                   tableId={selectedTable}
                   orderId={editingOrder?.id}
+                  orderCode={editingOrder?.orderCode}
                 />
               </div>
             </div>
@@ -399,6 +455,7 @@ export default function AdminPOS() {
           total={total}
           tableId={selectedTable}
           orderId={editingOrder?.id}
+          orderCode={editingOrder?.orderCode}
         />
       </div>
     </div>

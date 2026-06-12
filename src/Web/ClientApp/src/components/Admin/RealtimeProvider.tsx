@@ -4,6 +4,7 @@ import { HubConnectionBuilder, HubConnection, LogLevel } from '@microsoft/signal
 import { Bell, Coffee, X } from 'lucide-react';
 import { useAuthStore } from '../../store/useAuthStore';
 import api from '../../lib/api';
+import { useOrderStore } from '../../store/useOrderStore';
 
 interface ToastData {
   id: string;
@@ -72,6 +73,9 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
     }]);
 
     playAudio(newOrderAudio.current);
+
+    // Silently refetch active orders from backend to update dashboard dynamically
+    useOrderStore.getState().fetchInitialData(true);
   };
 
   const handleWaiterCall = (tableId: string) => {
@@ -157,25 +161,6 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
       ))}
 
       <Toast.Viewport className="fixed bottom-0 right-0 p-6 flex flex-col gap-3 w-full max-w-sm m-0 list-none z-[2147483647] outline-none" />
-
-      {/* Dev Environment Fake Triggers */}
-      {(import.meta as any).env.DEV && (
-        <div className="fixed bottom-4 left-4 z-[99999] bg-white p-3 rounded-2xl border-2 border-dashed border-emerald-500 flex flex-col gap-2 rtl shadow-xl print:hidden">
-          <div className="text-xs font-bold text-emerald-800 text-center mb-1">ابزار تست SignalR</div>
-          <button
-            onClick={() => handleNewOrder({ tableId: Math.floor(Math.random() * 10) + 1 })}
-            className="text-xs py-2 px-4 bg-emerald-100 text-emerald-800 hover:bg-emerald-200 transition-colors rounded-lg font-bold"
-          >
-            تست: سفارش جدید
-          </button>
-          <button
-            onClick={() => handleWaiterCall(String(Math.floor(Math.random() * 10) + 1))}
-            className="text-xs py-2 px-4 bg-amber-100 text-amber-800 hover:bg-amber-200 transition-colors rounded-lg font-bold"
-          >
-            تست: احضار سالن‌کار
-          </button>
-        </div>
-      )}
     </Toast.Provider>
   );
 }

@@ -1,4 +1,4 @@
-﻿using CafePosBackend.Application.Categories;
+using CafePosBackend.Application.Categories;
 using CafePosBackend.Application.Categories.Commands.CreateCategory;
 using CafePosBackend.Application.Categories.Queries.GetAllCategories;
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -10,7 +10,7 @@ public class Categories : IEndpointGroup
     public static void Map(RouteGroupBuilder groupBuilder)
     {
         groupBuilder.MapPost(CreateCategory);
-
+        groupBuilder.MapGet(GetAllCategories);
     }
 
     [EndpointSummary("Create a new Category")]

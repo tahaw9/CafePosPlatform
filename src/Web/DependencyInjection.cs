@@ -1,3 +1,5 @@
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using Azure.Identity;
 using CafePosBackend.Application.Common.Interfaces;
 using CafePosBackend.Infrastructure.Data;
@@ -38,6 +40,15 @@ public static class DependencyInjection
             options.EnableDetailedErrors = builder.Environment.IsDevelopment();
             options.KeepAliveInterval = TimeSpan.FromSeconds(15);
             options.ClientTimeoutInterval = TimeSpan.FromSeconds(30);
+        }).AddJsonProtocol(options =>
+        {
+            options.PayloadSerializerOptions.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase));
+        });
+
+        // Configure global HTTP JSON options for Minimal APIs to use camelCase string enums
+        builder.Services.ConfigureHttpJsonOptions(options =>
+        {
+            options.SerializerOptions.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase));
         });
 
         // Register the real-time notification service (bridges Application layer to SignalR)

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Text;
 using CafePosBackend.Application.Common.Interfaces;
@@ -36,7 +36,7 @@ public class NewOrderCommandHandler : IRequestHandler<NewOrderCommand, bool>
         // - Prevent spam (rate-limit waiter calls)
 
         // Broadcast to all connected admin dashboard clients
-        await _notifications.NotifyWaiterCall(request.TableId);
+        await _notifications.NotifyNewOrder(new NewOrderNotification { TableId = request.TableId });
 
         return true;
     }

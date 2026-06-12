@@ -44,7 +44,7 @@ export default function AdminTables() {
               </div>
               {activeOrder && (
                 <div className="text-center text-xs mt-1 bg-black/5 rounded px-1 py-0.5" title="سفارش فعال">
-                  #{activeOrder.id.replace('ORD-', '')}
+                  #{activeOrder.orderCode}
                 </div>
               )}
             </div>

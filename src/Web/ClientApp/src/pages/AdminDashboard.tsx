@@ -13,23 +13,35 @@ const STATUS_COLUMNS = [
 ];
 
 export default function AdminDashboard() {
-  const { orders, fetchInitialData, updateOrderStatus } = useOrderStore();
+  const { orders, fetchInitialData, updateOrderStatus, isLoading, isSubmitting } = useOrderStore();
   const navigate = useNavigate();
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
 
   useEffect(() => {
-    // Only fetch if empty to prevent overriding state in development
-    if (orders.length === 0) {
-      fetchInitialData();
-    }
-  }, [fetchInitialData, orders.length]);
+    fetchInitialData();
+  }, [fetchInitialData]);
 
-  const handleCancelOrder = (id: string) => {
+  const handleCancelOrder = async (id: string) => {
     if (window.confirm('آیا از لغو این سفارش اطمینان دارید؟')) {
-      updateOrderStatus(id, 'cancelled');
-      toast.success('سفارش لغو شد');
+      try {
+        await updateOrderStatus(id, 'cancelled');
+        toast.success('سفارش لغو شد');
+      } catch {
+        // Error toast is already handled by the store
+      }
     }
   };
+
+  if (isLoading && orders.length === 0) {
+    return (
+      <div className="flex-grow flex items-center justify-center bg-gray-50 h-full">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-12 h-12 border-4 border-[#0f3229] border-t-transparent rounded-full animate-spin" />
+          <span className="text-gray-500 font-bold text-sm">در حال دریافت سفارشات زنده...</span>
+        </div>
+      </div>
+    );
+  }
 
   // Exclude cancelled from the visible kanban board typically, or we could add a column
   const activeOrders = orders.filter(o => o.status !== 'cancelled');
@@ -62,10 +74,10 @@ export default function AdminDashboard() {
                           onClick={() => setSelectedOrder(order)}
                           className="font-bold text-lg hover:text-[#0f3229] transition-colors flex items-center gap-1"
                         >
-                          #{order.id.replace('ORD-', '')} <Info size={16} className="text-gray-400" />
+                          #{order.orderCode} <Info size={16} className="text-gray-400" />
                         </button>
                         <div className="text-sm text-gray-500 mt-1">
-                          {order.tableId === 'takeaway' ? 'بیرون‌بر' : `میز ${order.tableId}`}
+                          {order.tableNumber ? `میز ${order.tableNumber}` : 'بیرون‌بر'}
                         </div>
                       </div>
                       <div className="text-end flex flex-col items-end gap-1">
@@ -78,9 +90,13 @@ export default function AdminDashboard() {
                           <div className="mt-1">
                             <Dropdown 
                               value="" 
-                              onChange={(val) => {
-                                useOrderStore.getState().markAsPaid(order.id, val as PaymentMethod);
-                                toast.success('پرداخت تایید شد');
+                              onChange={async (val) => {
+                                try {
+                                  await useOrderStore.getState().markAsPaid(order.id, val as PaymentMethod);
+                                  toast.success('پرداخت تایید شد');
+                                } catch {
+                                  // Error toast is already handled by the store
+                                }
                               }}
                               placeholder="ثبت پرداخت ▼"
                               options={[
@@ -114,7 +130,14 @@ export default function AdminDashboard() {
                     <div className="flex flex-col gap-2 mt-auto pt-2">
                       <Dropdown 
                         value={order.status}
-                        onChange={(val) => updateOrderStatus(order.id, val as OrderStatus)}
+                        onChange={async (val) => {
+                          try {
+                            await updateOrderStatus(order.id, val as OrderStatus);
+                            toast.success('وضعیت سفارش بروزرسانی شد');
+                          } catch {
+                            // Error toast is already handled by the store
+                          }
+                        }}
                         options={[
                           { value: 'pending', label: '⏳ در انتظار' },
                           { value: 'preparing', label: '🔥 آماده‌سازی' },
