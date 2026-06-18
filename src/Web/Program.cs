@@ -15,11 +15,13 @@ builder.AddWebServices();
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
+// Always run migrations on startup (useful for containerized deployments)
+if (app.Environment.IsDevelopment() || Environment.GetEnvironmentVariable("RUN_MIGRATIONS") == "true")
 {
     await app.InitialiseDatabaseAsync();
 }
-else
+
+if (!app.Environment.IsDevelopment())
 {
     // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
     app.UseHsts();
@@ -33,7 +35,17 @@ app.UseCors(static corsBuilder =>
         .AllowCredentials()                // Required for SignalR WebSockets
         .SetIsOriginAllowed(_ => true));   // For production, replace with .WithOrigins("https://yourdomain.com")
 
-app.UseFileServer();
+app.UseFileServer(new FileServerOptions
+{
+    StaticFileOptions =
+    {
+        OnPrepareResponse = ctx =>
+        {
+            // Cache static files (like images, JS, CSS) for 7 days to dramatically improve load times
+            ctx.Context.Response.Headers.Append("Cache-Control", "public,max-age=604800");
+        }
+    }
+});
 
 app.UseAuthentication();
 app.UseAuthorization();

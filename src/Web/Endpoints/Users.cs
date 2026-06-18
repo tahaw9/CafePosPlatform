@@ -6,6 +6,8 @@ using CafePosBackend.Application.Users.Commands.CreateUser;
 using CafePosBackend.Application.Users.Queries.GetAllUsers;
 using CafePosBackend.Application.Users.Queries.GetCurrentUser;
 using CafePosBackend.Application.Users.Queries.UserByPhoneNumber;
+using CafePosBackend.Application.Users.Commands.ToggleUserStatus;
+using CafePosBackend.Application.Users.Commands.ChangePassword;
 using CafePosBackend.Infrastructure.Identity;
 using Microsoft.AspNetCore.Authentication.BearerToken;
 using Microsoft.AspNetCore.Authorization;
@@ -26,6 +28,8 @@ public class Users : IEndpointGroup
         groupBuilder.MapGet(GetAllUsers).RequireAuthorization(new AuthorizeAttribute { Roles = "Administrator" });
         groupBuilder.MapGet(GetCurrentUser, "me").RequireAuthorization();
         groupBuilder.MapPost(Logout, "logout").RequireAuthorization();
+        groupBuilder.MapPost(ToggleUserStatus, "{id:guid}/toggle-status").RequireAuthorization(new AuthorizeAttribute { Roles = "Administrator" });
+        groupBuilder.MapPost(ChangePassword, "change-password").RequireAuthorization();
     }
 
     [EndpointSummary("login with phone for admins")]
@@ -113,5 +117,25 @@ public class Users : IEndpointGroup
         }
 
         return TypedResults.Ok(userDto);
+    }
+
+    [EndpointSummary("Toggle user status")]
+    [EndpointDescription("Toggles a user's active status (suspend/activate).")]
+    public static async Task<Results<Ok, ProblemHttpResult>> ToggleUserStatus(
+        ISender sender,
+        Guid id)
+    {
+        await sender.Send(new ToggleUserStatusCommand(id));
+        return TypedResults.Ok();
+    }
+
+    [EndpointSummary("Change user password")]
+    [EndpointDescription("Changes the password for the currently authenticated user.")]
+    public static async Task<Results<Ok, ProblemHttpResult>> ChangePassword(
+        ISender sender,
+        ChangePasswordCommand command)
+    {
+        await sender.Send(command);
+        return TypedResults.Ok();
     }
 }

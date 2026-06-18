@@ -1,0 +1,32 @@
+version: '3.8'
+
+services:
+  database:
+    image: postgres:18.3
+    environment:
+      - POSTGRES_DB=CafePosDb
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=2580782580
+      - PGDATA=/var/lib/postgresql/data/pgdata
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
+    restart: unless-stopped
+
+  webapi:
+    build:
+      context: .
+      dockerfile: src/Web/Dockerfile
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - RUN_MIGRATIONS=true
+      - ConnectionStrings__CafePosBackendDb=Host=database;Port=5432;Database=CafePosDb;Username=postgres;Password=2580782580
+    ports:
+      - "8080:8080"
+    depends_on:
+      - database
+    restart: unless-stopped
+
+volumes:
+  db-data:

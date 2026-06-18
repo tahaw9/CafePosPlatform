@@ -5,6 +5,8 @@ import { useOrderStore, OrderStatus, PaymentMethod, Order } from '../store/useOr
 import toast from 'react-hot-toast';
 import Dropdown from '../components/Admin/Dropdown';
 import OrderDetailModal from '../components/Admin/OrderDetailModal';
+import * as Dialog from '@radix-ui/react-dialog';
+import { useUnpaidOrderStore } from '../store/useUnpaidOrderStore';
 
 const STATUS_COLUMNS = [
   { id: 'pending', title: 'در انتظار', color: 'bg-red-100 text-red-800 border-red-200' },
@@ -17,9 +19,16 @@ export default function AdminDashboard() {
   const navigate = useNavigate();
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
 
+  const { flagOrder, isSubmitting: isFlagging, unpaidOrders, fetchUnpaidOrders } = useUnpaidOrderStore();
+  const [isUnpaidModalOpen, setIsUnpaidModalOpen] = useState(false);
+  const [targetUnpaidOrderId, setTargetUnpaidOrderId] = useState<string | null>(null);
+  const [debtorName, setDebtorName] = useState('');
+  const [debtorPhone, setDebtorPhone] = useState('');
+
   useEffect(() => {
     fetchInitialData();
-  }, [fetchInitialData]);
+    fetchUnpaidOrders();
+  }, [fetchInitialData, fetchUnpaidOrders]);
 
   const handleCancelOrder = async (id: string) => {
     if (window.confirm('آیا از لغو این سفارش اطمینان دارید؟')) {
@@ -29,6 +38,30 @@ export default function AdminDashboard() {
       } catch {
         // Error toast is already handled by the store
       }
+    }
+  };
+
+  const handleUnpaidSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!targetUnpaidOrderId) return;
+    if (!debtorName || !/^09[0-9]{9}$/.test(debtorPhone)) {
+      toast.error('لطفا نام و شماره موبایل معتبر (با 09 شروع شود) وارد کنید');
+      return;
+    }
+
+    try {
+      await flagOrder({
+        orderId: targetUnpaidOrderId,
+        customerName: debtorName,
+        phoneNumber: debtorPhone
+      });
+      await fetchUnpaidOrders();
+      setIsUnpaidModalOpen(false);
+      setDebtorName('');
+      setDebtorPhone('');
+      setTargetUnpaidOrderId(null);
+    } catch (error) {
+      // Error handled by store
     }
   };
 
@@ -86,11 +119,18 @@ export default function AdminDashboard() {
                         </div>
                         {order.isPaid ? (
                           <span className="inline-block mt-1 bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs">پرداخت شده</span>
+                        ) : unpaidOrders.some(uo => uo.orderId === order.id) ? (
+                          <span className="inline-block mt-1 bg-red-100 text-red-700 font-bold px-2 py-0.5 rounded text-xs border border-red-200">عدم پرداخت (نسیه)</span>
                         ) : (
                           <div className="mt-1">
                             <Dropdown 
                               value="" 
                               onChange={async (val) => {
+                                if (val === 'unpaid') {
+                                  setTargetUnpaidOrderId(order.id);
+                                  setIsUnpaidModalOpen(true);
+                                  return;
+                                }
                                 try {
                                   await useOrderStore.getState().markAsPaid(order.id, val as PaymentMethod);
                                   toast.success('پرداخت تایید شد');
@@ -102,7 +142,8 @@ export default function AdminDashboard() {
                               options={[
                                 { value: 'card', label: '💳 کارتخوان' },
                                 { value: 'cash', label: '💵 نقد' },
-                                { value: 'transfer', label: '🏦 کارت به کارت' }
+                                { value: 'transfer', label: '🏦 کارت به کارت' },
+                                { value: 'unpaid', label: '❌ عدم پرداخت (نسیه)' }
                               ]}
                               triggerClassName="bg-red-100 !text-red-700 border-none hover:bg-red-200 !px-2 !py-0.5 !rounded !text-xs transition-colors h-auto focus:ring-0"
                             />
@@ -185,6 +226,61 @@ export default function AdminDashboard() {
         order={selectedOrder}
         onClose={() => setSelectedOrder(null)}
       />
+
+      {/* Debt Registration Modal */}
+      <Dialog.Root open={isUnpaidModalOpen} onOpenChange={setIsUnpaidModalOpen}>
+        <Dialog.Portal>
+          <Dialog.Overlay className="fixed inset-0 bg-black/50 z-[100] dialog-overlay print:hidden" />
+          <Dialog.Content 
+            className="fixed bg-white rounded-xl shadow-xl w-[90vw] max-w-md p-6 z-[101] dialog-content rtl"
+            style={{ top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }}
+          >
+            <Dialog.Title className="text-xl font-bold text-gray-900 mb-4">ثبت سفارش نسیه</Dialog.Title>
+            <form onSubmit={handleUnpaidSubmit} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">نام و نام خانوادگی مشتری</label>
+                <input 
+                  type="text" 
+                  value={debtorName}
+                  onChange={(e) => setDebtorName(e.target.value)}
+                                  className="
+w-full border border-gray-200 bg-white text-gray-900 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#0f3229]"
+                  placeholder="مثال: علی محمدی"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">شماره موبایل</label>
+                <input 
+                  type="tel" 
+                  value={debtorPhone}
+                  onChange={(e) => setDebtorPhone(e.target.value)}
+                                  className="w-full border border-gray-200 bg-white text-gray-900 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#0f3229] focus:border-transparent text-left"
+                  dir="ltr"
+                  placeholder="09123456789"
+                  pattern="^09[0-9]{9}$"
+                  required
+                />
+              </div>
+              <div className="pt-4 flex gap-3">
+                <button
+                  type="submit"
+                  disabled={isFlagging}
+                  className="flex-1 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg font-medium transition-colors disabled:opacity-50"
+                >
+                  {isFlagging ? 'در حال ثبت...' : 'ثبت بدهی'}
+                </button>
+                <Dialog.Close asChild>
+                  <button type="button" className="flex-1 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-lg font-medium transition-colors">
+                    انصراف
+                  </button>
+                </Dialog.Close>
+              </div>
+            </form>
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
+
     </div>
   );
 }

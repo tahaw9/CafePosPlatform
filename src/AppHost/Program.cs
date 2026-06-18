@@ -1,14 +1,15 @@
+using Aspire.Hosting.Docker;
 using CafePosBackend.Shared;
 
 var builder = DistributedApplication.CreateBuilder(args);
 
-builder.AddAzureContainerAppEnvironment("aca-env");
+IResourceBuilder<DockerComposeEnvironmentResource> env = builder.AddDockerComposeEnvironment("env");
 
 var databaseServer = builder
-    .AddAzurePostgresFlexibleServer(Services.DatabaseServer)
-    .WithPasswordAuthentication()
-    .RunAsContainer(container => 
-        container.WithLifetime(ContainerLifetime.Persistent))
+    .AddPostgres(Services.DatabaseServer)
+    .WithDataVolume()
+    .WithPgAdmin()
+    .WithLifetime(ContainerLifetime.Persistent)
     .AddDatabase(Services.Database);
 
 var web = builder.AddProject<Projects.Web>(Services.WebApi)

@@ -17,7 +17,9 @@ public interface IIdentityService
 
     Task<bool> AuthorizeAsync(Guid userId, string policyName);
 
-    Task<(Result Result, Guid UserId)> CreateUserAsync(string phoneNumber, string password, string name);
+    Task<(Result Result, Guid UserId)> CreateUserAsync(string phoneNumber, string password, string name, string role);
+    Task<Result> ToggleUserStatusAsync(Guid userId);
+    Task<Result> ChangePasswordAsync(Guid userId, string currentPassword, string newPassword);
 
     Task<Result> DeleteUserAsync(Guid userId);
 }

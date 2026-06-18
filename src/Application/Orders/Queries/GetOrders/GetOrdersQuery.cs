@@ -25,9 +25,30 @@ public class GetOrdersQueryHandler : IRequestHandler<GetOrdersQuery, IEnumerable
 
     public async Task<IEnumerable<OrderDto>> Handle(GetOrdersQuery request, CancellationToken cancellationToken)
     {
+        // ۱. تبدیل به زمان ایران
+        var iranTimeZone = TimeZoneInfo.FindSystemTimeZoneById("Asia/Tehran");
+        var nowInIran = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, iranTimeZone);
+
+        // ۲. پیدا کردن نقطه شروع ۶ صبحِ روز کاری جاری به وقت ایران
+        DateTime iranBusinessStart;
+        if (nowInIran.Hour < 6)
+        {
+            iranBusinessStart = nowInIran.Date.AddDays(-1).AddHours(6); // ۶ صبح دیروز
+        }
+        else
+        {
+            iranBusinessStart = nowInIran.Date.AddHours(6); // ۶ صبح امروز
+        }
+
+        DateTime iranBusinessEnd = iranBusinessStart.AddDays(1); // ۶ صبح فردا
+
+        // ۳. تبدیل این دو زمان ایران به UTC جهت کوئری زدن روی دیتابیس (چون CreatedAt به UTC ذخیره می‌شود)
+        var utcStart = TimeZoneInfo.ConvertTimeToUtc(iranBusinessStart, iranTimeZone);
+        var utcEnd = TimeZoneInfo.ConvertTimeToUtc(iranBusinessEnd, iranTimeZone);
         var query = _context.Orders
             .Include(o => o.Items)
             .Include(o => o.Table)
+            .Where(i => i.Created <= utcEnd && i.Created >= utcStart)
             .AsNoTracking();
 
         if (!string.IsNullOrEmpty(request.Status))

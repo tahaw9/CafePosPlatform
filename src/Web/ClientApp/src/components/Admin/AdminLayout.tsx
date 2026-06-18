@@ -16,6 +16,7 @@ export default function AdminLayout() {
     { name: 'وضعیت میزها', path: '/admin/tables', icon: <Grid2X2 size={20} />, active: isAdmin },
     { name: 'صندوق (POS)', path: '/admin/pos', icon: <MonitorSmartphone size={20} />, active: true },
     { name: 'انبار و منو', path: '/admin/inventory', icon: <Package size={20} />, active: true },
+    { name: 'سفارشات پرداخت نشده', path: '/admin/unpaid-orders', icon: <FileBarChart size={20} />, active: true },
     { name: 'گزارشات', path: '/admin/reports', icon: <FileBarChart size={20} />, active: isAdmin },
     { name: 'پروفایل', path: '/admin/profile', icon: <User size={20} />, active: true },
   ].filter(l => l.active);

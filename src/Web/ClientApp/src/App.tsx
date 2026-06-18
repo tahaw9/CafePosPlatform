@@ -17,6 +17,8 @@ import AdminProfile from './pages/AdminProfile';
 import AdminLayout from './components/Admin/AdminLayout';
 import ProtectedRoute from './components/Admin/ProtectedRoute';
 
+import AdminUnpaidOrders from './pages/AdminUnpaidOrders';
+
 export default function App() {
   return (
     <BrowserRouter>
@@ -40,6 +42,7 @@ export default function App() {
             <Route index element={<Navigate to="/admin/dashboard" replace />} />
             <Route path="dashboard" element={<AdminDashboard />} />
             <Route path="pos" element={<AdminPOS />} />
+            <Route path="unpaid-orders" element={<AdminUnpaidOrders />} />
             <Route path="profile" element={<AdminProfile />} />
             <Route path="inventory" element={<AdminInventory />} />
             

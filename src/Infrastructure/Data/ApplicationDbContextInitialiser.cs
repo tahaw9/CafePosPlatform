@@ -43,9 +43,9 @@ public class ApplicationDbContextInitialiser
         try
         {   
             // See https://jasontaylor.dev/ef-core-database-initialisation-strategies
-            await _context.Database.EnsureDeletedAsync();
-            await _context.Database.EnsureCreatedAsync();
-            //await _context.Database.MigrateAsync();
+            //await _context.Database.EnsureDeletedAsync();
+            //await _context.Database.EnsureCreatedAsync();
+            await _context.Database.MigrateAsync();
         }
         catch (Exception ex)
         {
@@ -71,10 +71,15 @@ public class ApplicationDbContextInitialiser
     {
         // Default roles
         var administratorRole = new IdentityRole<Guid>(Roles.Administrator);
+        var baristaRole = new IdentityRole<Guid>(Roles.Barista);
 
         if (_roleManager.Roles.All(r => r.Name != administratorRole.Name))
         {
             await _roleManager.CreateAsync(administratorRole);
+        }
+        if (_roleManager.Roles.All(r => r.Name != baristaRole.Name))
+        {
+            await _roleManager.CreateAsync(baristaRole);
         }
 
         // Default users

@@ -40,7 +40,7 @@ public class IdentityService : IIdentityService
         return user?.UserName;
     }
 
-    public async Task<(Result Result, Guid UserId)> CreateUserAsync(string phoneNumber, string password, string fullName)
+    public async Task<(Result Result, Guid UserId)> CreateUserAsync(string phoneNumber, string password, string fullName, string role)
     {
         var user = new ApplicationUser
         {
@@ -51,7 +51,46 @@ public class IdentityService : IIdentityService
 
         var result = await _userManager.CreateAsync(user, password);
 
+        if (result.Succeeded && !string.IsNullOrWhiteSpace(role))
+        {
+            await _userManager.AddToRoleAsync(user, role);
+        }
+
         return (result.ToApplicationResult(), user.Id);
+    }
+
+    public async Task<Result> ToggleUserStatusAsync(Guid userId)
+    {
+        var user = await _userManager.FindByIdAsync(userId.ToString());
+        if (user == null)
+        {
+            return Result.Failure(["User not found."]);
+        }
+
+        await _userManager.SetLockoutEnabledAsync(user, true);
+
+        if (user.LockoutEnd == null || user.LockoutEnd <= DateTimeOffset.UtcNow)
+        {
+            await _userManager.SetLockoutEndDateAsync(user, DateTimeOffset.MaxValue);
+        }
+        else
+        {
+            await _userManager.SetLockoutEndDateAsync(user, null);
+        }
+
+        return Result.Success();
+    }
+
+    public async Task<Result> ChangePasswordAsync(Guid userId, string currentPassword, string newPassword)
+    {
+        var user = await _userManager.FindByIdAsync(userId.ToString());
+        if (user == null)
+        {
+            return Result.Failure(["User not found."]);
+        }
+
+        var result = await _userManager.ChangePasswordAsync(user, currentPassword, newPassword);
+        return result.ToApplicationResult();
     }
 
     public async Task<bool> IsInRoleAsync(Guid userId, string role)
@@ -145,6 +184,7 @@ public class IdentityService : IIdentityService
                 Id = user.Id,
                 PhoneNumber = user.PhoneNumber ?? string.Empty,
                 FullName = user.FullName,
+                IsActive = user.LockoutEnd == null || user.LockoutEnd <= DateTimeOffset.UtcNow,
                 Roles = _context.UserRoles
                     .Where(ur => ur.UserId == user.Id)
                     .Join(_context.Roles, ur => ur.RoleId, r => r.Id, (ur, r) => r.Name)

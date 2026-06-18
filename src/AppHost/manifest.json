@@ -1,0 +1,117 @@
+{
+  "resources": {
+    "env": {
+      "error": "This resource does not support generation in the manifest."
+    },
+    "dbserver": {
+      "type": "container.v1",
+      "connectionString": "Host={dbserver.bindings.tcp.host};Port={dbserver.bindings.tcp.port};Username=postgres;Password={dbserver-password.value}",
+      "image": "docker.io/library/postgres:18.3",
+      "volumes": [
+        {
+          "name": "cafeposbackend.apphost-feed4158f1-dbserver-data",
+          "target": "/var/lib/postgresql",
+          "readOnly": false
+        }
+      ],
+      "env": {
+        "POSTGRES_HOST_AUTH_METHOD": "scram-sha-256",
+        "POSTGRES_INITDB_ARGS": "--auth-host=scram-sha-256 --auth-local=scram-sha-256",
+        "POSTGRES_USER": "postgres",
+        "POSTGRES_PASSWORD": "{dbserver-password.value}"
+      },
+      "bindings": {
+        "tcp": {
+          "scheme": "tcp",
+          "protocol": "tcp",
+          "transport": "tcp",
+          "targetPort": 5432
+        }
+      }
+    },
+    "CafePosBackendDb": {
+      "type": "value.v0",
+      "connectionString": "{dbserver.connectionString};Database=CafePosBackendDb"
+    },
+    "webapi": {
+      "type": "project.v1",
+      "path": "../Web/Web.csproj",
+      "env": {
+        "OTEL_DOTNET_EXPERIMENTAL_OTLP_RETRY": "in_memory",
+        "ASPNETCORE_FORWARDEDHEADERS_ENABLED": "true",
+        "HTTP_PORTS": "{webapi.bindings.http.targetPort}",
+        "ConnectionStrings__CafePosBackendDb": "{CafePosBackendDb.connectionString}",
+        "CAFEPOSBACKENDDB_HOST": "{dbserver.bindings.tcp.host}",
+        "CAFEPOSBACKENDDB_PORT": "{dbserver.bindings.tcp.port}",
+        "CAFEPOSBACKENDDB_USERNAME": "postgres",
+        "CAFEPOSBACKENDDB_PASSWORD": "{dbserver-password.value}",
+        "CAFEPOSBACKENDDB_URI": "postgresql://postgres:{dbserver-password-uri-encoded.value}@{dbserver.bindings.tcp.host}:{dbserver.bindings.tcp.port}/CafePosBackendDb",
+        "CAFEPOSBACKENDDB_JDBCCONNECTIONSTRING": "jdbc:postgresql://{dbserver.bindings.tcp.host}:{dbserver.bindings.tcp.port}/CafePosBackendDb",
+        "CAFEPOSBACKENDDB_DATABASENAME": "CafePosBackendDb",
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "OTEL_EXPORTER_OTLP_ENDPOINT": "{env-dashboard.bindings.otlp-grpc.url}",
+        "OTEL_EXPORTER_OTLP_PROTOCOL": "grpc",
+        "OTEL_SERVICE_NAME": "webapi"
+      },
+      "bindings": {
+        "http": {
+          "scheme": "http",
+          "protocol": "tcp",
+          "transport": "http",
+          "external": true
+        },
+        "https": {
+          "scheme": "https",
+          "protocol": "tcp",
+          "transport": "http",
+          "external": true
+        }
+      }
+    },
+    "dbserver-password": {
+      "type": "parameter.v0",
+      "value": "{dbserver-password.inputs.value}",
+      "inputs": {
+        "value": {
+          "type": "string",
+          "secret": true,
+          "default": {
+            "generate": {
+              "minLength": 22
+            }
+          }
+        }
+      }
+    },
+    "dbserver-password-uri-encoded": {
+      "type": "annotated.string",
+      "value": "{dbserver-password.value}",
+      "filter": "uri"
+    },
+    "env-dashboard": {
+      "type": "container.v1",
+      "image": "mcr.microsoft.com/dotnet/nightly/aspire-dashboard:latest",
+      "bindings": {
+        "http": {
+          "scheme": "http",
+          "protocol": "tcp",
+          "transport": "http",
+          "targetPort": 18888,
+          "external": true
+        },
+        "otlp-grpc": {
+          "scheme": "http",
+          "protocol": "tcp",
+          "transport": "http",
+          "targetPort": 18889
+        },
+        "otlp-http": {
+          "scheme": "http",
+          "protocol": "tcp",
+          "transport": "http",
+          "targetPort": 18890
+        }
+      }
+    }
+  }
+}

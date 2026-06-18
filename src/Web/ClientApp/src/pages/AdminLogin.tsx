@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore, UserRole } from '../store/useAuthStore';
 import { LogIn, AtSign, KeyRound } from 'lucide-react';
 import toast from 'react-hot-toast';
+import api from '../lib/api';
 
 export default function AdminLogin() {
   const [username, setUsername] = useState('');
@@ -10,7 +11,7 @@ export default function AdminLogin() {
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
-  const { setAuth, users } = useAuthStore();
+  const { setAuth } = useAuthStore();
 
   const from = (location.state as any)?.from?.pathname || '/admin/dashboard';
 
@@ -19,37 +20,48 @@ export default function AdminLogin() {
     setIsLoading(true);
 
     try {
-      // Mock API call to .NET Core backend
-      await new Promise(resolve => setTimeout(resolve, 800));
+      // 1. Login with phone and password
+      const loginRes = await api.post('/Users/login-phone', {
+        phoneNumber: username,
+        password: password
+      });
 
-      // Quick mock logic: username == admin vs barista
-      const role: UserRole = username.toLowerCase().includes('barista') ? 'barista' : 'admin';
-      
-      const user = users.find(u => u.role === role) || users[0];
-
-      if (!user) {
-         throw new Error('User not found');
+      const token = loginRes.data?.accessToken;
+      if (!token) {
+        throw new Error('Token not received from server');
       }
 
-      setAuth(`mock-jwt-token-${Date.now()}`, user);
+      // Temporarily set the token so the api interceptor can use it for the next request
+      useAuthStore.getState().setAuth(token, { id: '', name: '', phone: '', role: 'barista', isActive: true });
+
+      // 2. Fetch current user profile
+      const meRes = await api.get('/Users/me');
+      const userData = meRes.data;
+
+      // 3. Set full auth state
+      setAuth(token, {
+        id: userData.id || Date.now().toString(),
+        name: userData.fullName || userData.userName || 'کاربر',
+        phone: username,
+        // Fallback to basic string parsing if role structure is unknown
+        role: JSON.stringify(userData).toLowerCase().includes('admin') ? 'admin' : 'barista',
+        isActive: true
+      });
+
       toast.success('ورود با موفقیت انجام شد');
       navigate(from, { replace: true });
 
-    } catch (error) {
-      toast.error('نام کاربری یا رمز عبور اشتباه است');
+    } catch (error: any) {
+      console.error('Login failed:', error);
+      const msg = error.response?.data?.title || error.response?.data?.detail || 'نام کاربری یا رمز عبور اشتباه است';
+      toast.error(msg);
+      useAuthStore.getState().logout();
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleQuickLogin = (role: UserRole) => {
-    const user = users.find(u => u.role === role);
-    if (user) {
-      setAuth(`mock-jwt-token-${role}-${Date.now()}`, user);
-      toast.success(`ورود سریع به عنوان ${role === 'admin' ? 'مدیریت' : 'باریستا'}`);
-      navigate('/admin/dashboard', { replace: true });
-    }
-  };
+
 
   return (
     <div className="min-h-screen bg-[#0f3229] flex flex-col items-center justify-center p-4 sm:p-8 rtl" dir="rtl">
@@ -118,31 +130,7 @@ export default function AdminLogin() {
         </div>
       </div>
 
-      {/* Dev Quick Login Buttons */}
-      {(import.meta as any).env.DEV && (
-        <div className="w-full max-w-md mt-6 p-6 rounded-2xl border border-emerald-800 bg-[#0f3229]/50 backdrop-blur-sm shadow-inner">
-          <div className="flex items-center gap-2 mb-4 justify-center text-emerald-200 opacity-80">
-            <div className="h-px bg-emerald-800 flex-1"></div>
-            <span className="text-xs font-bold tracking-widest px-2 uppercase">ورود سریع - حالت توسعه</span>
-            <div className="h-px bg-emerald-800 flex-1"></div>
-          </div>
-          
-          <div className="flex gap-3">
-            <button
-              onClick={() => handleQuickLogin('admin')}
-              className="flex-1 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-100 py-3 rounded-xl font-medium transition-colors text-sm"
-            >
-              ورود به عنوان مدیریت
-            </button>
-            <button
-              onClick={() => handleQuickLogin('barista')}
-              className="flex-1 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-100 py-3 rounded-xl font-medium transition-colors text-sm"
-            >
-              ورود به عنوان باریستا
-            </button>
-          </div>
-        </div>
-      )}
+
 
     </div>
   );

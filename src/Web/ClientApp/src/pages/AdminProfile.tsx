@@ -7,18 +7,37 @@ import { useAuthStore, UserRole, User } from '../store/useAuthStore';
 import { useOrderStore } from '../store/useOrderStore';
 import { KeyRound, UserPlus, ShieldBan, ShieldCheck, Mail, Phone, CalendarDays } from 'lucide-react';
 import toast from 'react-hot-toast';
+import api from '../lib/api';
 
 export default function AdminProfile() {
-  const { user, users, addUser, updateUser } = useAuthStore();
+  const { user } = useAuthStore();
   const { orders } = useOrderStore();
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
   const [isNewStaffModalOpen, setIsNewStaffModalOpen] = useState(false);
   
   const [newStaffData, setNewStaffData] = useState({ name: '', phone: '', password: '', role: 'barista' as UserRole });
+  const [passData, setPassData] = useState({ current: '', new: '', confirm: '' });
+  const [staffList, setStaffList] = useState<any[]>([]);
 
   if (!user) return null;
 
   const isAdmin = user.role === 'admin';
+
+  const fetchStaff = async () => {
+    try {
+      const res = await api.get('/Users');
+      setStaffList(res.data);
+    } catch (e) {
+      console.error(e);
+      toast.error('خطا در دریافت اطلاعات پرسنل');
+    }
+  };
+
+  React.useEffect(() => {
+    if (isAdmin) {
+      fetchStaff();
+    }
+  }, [isAdmin]);
 
   // Stats for Barista
   const todayOrders = orders.filter(o => {
@@ -26,33 +45,59 @@ export default function AdminProfile() {
     return isToday;
   });
 
-  const handleAddStaff = (e: React.FormEvent) => {
+  const handleAddStaff = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newStaffData.name || !newStaffData.phone || !newStaffData.password) {
       toast.error('لطفا تمام فیلدها را پر کنید');
       return;
     }
-    addUser({
-      name: newStaffData.name,
-      phone: newStaffData.phone,
-      role: newStaffData.role,
-      isActive: true
-    });
-    toast.success('پرسنل جدید با موفقیت اضافه شد');
-    setIsNewStaffModalOpen(false);
-    setNewStaffData({ name: '', phone: '', password: '', role: 'barista' });
+    
+    try {
+      await api.post('/Users', {
+        fullName: newStaffData.name,
+        phoneNumber: newStaffData.phone,
+        password: newStaffData.password,
+        role: newStaffData.role === 'admin' ? 'Administrator' : 'Barista'
+      });
+      toast.success('پرسنل جدید با موفقیت اضافه شد');
+      setIsNewStaffModalOpen(false);
+      setNewStaffData({ name: '', phone: '', password: '', role: 'barista' });
+      fetchStaff();
+    } catch (e: any) {
+      const msg = e.response?.data?.detail || e.response?.data?.title || 'خطا در ثبت پرسنل';
+      toast.error(msg);
+    }
   };
 
-  const handlePasswordChange = (e: React.FormEvent) => {
+  const handlePasswordChange = async (e: React.FormEvent) => {
     e.preventDefault();
-    toast.success('رمز عبور با موفقیت تغییر یافت');
-    setIsPasswordModalOpen(false);
-  }
+    if (passData.new !== passData.confirm) {
+      toast.error('رمز عبور جدید و تکرار آن یکسان نیستند');
+      return;
+    }
+    try {
+      await api.post('/Users/change-password', {
+        currentPassword: passData.current,
+        newPassword: passData.new
+      });
+      toast.success('رمز عبور با موفقیت تغییر یافت');
+      setIsPasswordModalOpen(false);
+      setPassData({ current: '', new: '', confirm: '' });
+    } catch (e: any) {
+      const msg = e.response?.data?.detail || e.response?.data?.title || 'خطا در تغییر رمز عبور';
+      toast.error(msg);
+    }
+  };
 
-  const toggleUserStatus = (id: string, currentStatus: boolean) => {
-    updateUser(id, { isActive: !currentStatus });
-    toast.success(currentStatus ? 'حساب کاربر تعلیق شد' : 'حساب کاربر فعال شد');
-  }
+  const toggleUserStatus = async (id: string, currentStatus: boolean) => {
+    try {
+      await api.post(`/Users/${id}/toggle-status`);
+      toast.success(currentStatus ? 'حساب کاربر تعلیق شد' : 'حساب کاربر فعال شد');
+      fetchStaff();
+    } catch (e) {
+      toast.error('خطا در تغییر وضعیت کاربر');
+    }
+  };
 
   return (
     <div className="p-6 h-full flex flex-col rtl relative max-w-5xl mx-auto">
@@ -132,15 +177,15 @@ export default function AdminProfile() {
                     <form onSubmit={handlePasswordChange} className="space-y-4">
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">رمز عبور فعلی</label>
-                        <input type="password" required dir="ltr" className="w-full border border-gray-200 bg-white text-gray-900 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#0f3229] font-mono text-left text-lg tracking-widest placeholder:tracking-normal placeholder:font-sans" placeholder="••••••••" />
+                        <input type="password" required dir="ltr" value={passData.current} onChange={e => setPassData({...passData, current: e.target.value})} className="w-full border border-gray-200 bg-white text-gray-900 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#0f3229] font-mono text-left text-lg tracking-widest placeholder:tracking-normal placeholder:font-sans" placeholder="••••••••" />
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">رمز عبور جدید</label>
-                        <input type="password" required dir="ltr" className="w-full border border-gray-200 bg-white text-gray-900 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#0f3229] font-mono text-left text-lg tracking-widest placeholder:tracking-normal placeholder:font-sans" placeholder="••••••••" />
+                        <input type="password" required dir="ltr" value={passData.new} onChange={e => setPassData({...passData, new: e.target.value})} className="w-full border border-gray-200 bg-white text-gray-900 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#0f3229] font-mono text-left text-lg tracking-widest placeholder:tracking-normal placeholder:font-sans" placeholder="••••••••" />
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">تکرار رمز عبور جدید</label>
-                        <input type="password" required dir="ltr" className="w-full border border-gray-200 bg-white text-gray-900 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#0f3229] font-mono text-left text-lg tracking-widest placeholder:tracking-normal placeholder:font-sans" placeholder="••••••••" />
+                        <input type="password" required dir="ltr" value={passData.confirm} onChange={e => setPassData({...passData, confirm: e.target.value})} className="w-full border border-gray-200 bg-white text-gray-900 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#0f3229] font-mono text-left text-lg tracking-widest placeholder:tracking-normal placeholder:font-sans" placeholder="••••••••" />
                       </div>
                       <div className="pt-4 flex gap-3">
                         <button type="submit" className="flex-1 bg-[#0f3229] hover:bg-[#0b261f] text-white py-2.5 rounded-lg font-medium transition-colors">
@@ -229,34 +274,36 @@ export default function AdminProfile() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {users.map(staff => (
+              {staffList.map(staff => {
+                const isStaffAdmin = staff.roles?.includes('Administrator');
+                return (
                 <div key={staff.id} className={`bg-white rounded-2xl shadow-sm border p-6 flex flex-col relative overflow-hidden ${!staff.isActive ? 'border-red-200 grayscale-[0.3]' : 'border-gray-100'}`}>
                   {!staff.isActive && (
                     <div className="absolute top-0 right-0 left-0 h-1 bg-red-500" />
                   )}
-                  {staff.isActive && staff.role === 'admin' && (
+                  {staff.isActive && isStaffAdmin && (
                     <div className="absolute top-0 right-0 left-0 h-1 bg-amber-400" />
                   )}
 
                   <div className="flex items-center gap-4 mb-4">
                     <Avatar.Root className="w-14 h-14 rounded-full bg-gray-100 flex items-center justify-center shrink-0">
                       <Avatar.Fallback className="text-gray-500 text-lg font-bold">
-                        {staff.name.charAt(0)}
+                        {staff.fullName ? staff.fullName.charAt(0) : '?'}
                       </Avatar.Fallback>
                     </Avatar.Root>
                     <div>
-                      <h3 className="font-bold text-gray-900 line-clamp-1">{staff.name}</h3>
-                      <p className="text-sm font-medium text-gray-500 font-mono mt-0.5 tracking-wider">{staff.phone}</p>
+                      <h3 className="font-bold text-gray-900 line-clamp-1">{staff.fullName}</h3>
+                      <p className="text-sm font-medium text-gray-500 font-mono mt-0.5 tracking-wider">{staff.phoneNumber}</p>
                     </div>
                   </div>
 
                   <div className="flex items-center gap-4 mt-auto pt-4 border-t border-gray-50">
                     <span className={`px-2.5 py-1 rounded-md text-xs font-bold ${
-                      staff.role === 'admin' 
+                      isStaffAdmin 
                         ? 'bg-amber-100 text-amber-800' 
                         : 'bg-emerald-100 text-emerald-800'
                     }`}>
-                      {staff.role === 'admin' ? 'مدیریت' : 'باریستا'}
+                      {isStaffAdmin ? 'مدیریت' : 'باریستا'}
                     </span>
 
                     {/* Don't allow admin to suspend themselves */}
@@ -282,7 +329,8 @@ export default function AdminProfile() {
                     )}
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           </Tabs.Content>
         )}

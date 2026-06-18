@@ -14,6 +14,7 @@ public interface IApplicationDbContext
     DbSet<Order> Orders { get; }
     DbSet<OrderItem> OrderItems { get; }
     DbSet<Table> Tables { get; }
+    DbSet<UnpaidOrder> UnpaidOrders { get; }
     DatabaseFacade Database { get; }    
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken);

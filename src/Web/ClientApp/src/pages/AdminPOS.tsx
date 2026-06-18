@@ -7,7 +7,6 @@ import toast from 'react-hot-toast';
 import ThermalReceipt from '../components/Admin/ThermalReceipt';
 import Dropdown from '../components/Admin/Dropdown';
 import * as Dialog from '@radix-ui/react-dialog';
-
 export default function AdminPOS() {
   const { items, categories, fetchMenu } = useMenuStore();
   const { orders, addOrder, tables, updateOrderStatus, updateOrder, fetchOrderById } = useOrderStore();

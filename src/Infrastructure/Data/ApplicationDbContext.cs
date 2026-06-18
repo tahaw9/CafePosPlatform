@@ -20,6 +20,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
     public DbSet<Order> Orders => Set<Order>();
     public DbSet<OrderItem> OrderItems => Set<OrderItem>();
     public DbSet<Table> Tables => Set<Table>();
+    public DbSet<UnpaidOrder> UnpaidOrders => Set<UnpaidOrder>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {

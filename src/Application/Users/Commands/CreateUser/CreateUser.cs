@@ -2,7 +2,7 @@ using CafePosBackend.Application.Common.Interfaces;
 
 namespace CafePosBackend.Application.Users.Commands.CreateUser;
 
-public record CreateUserCommand(string PhoneNumber, string Password, string FullName) : IRequest<Guid>;
+public record CreateUserCommand(string PhoneNumber, string Password, string FullName, string Role) : IRequest<Guid>;
 
 public class CreateUserCommandValidator : AbstractValidator<CreateUserCommand>
 {
@@ -21,6 +21,9 @@ public class CreateUserCommandValidator : AbstractValidator<CreateUserCommand>
             .NotEmpty()
             .MaximumLength(100)
             .WithMessage("نام و نام خانوادگی نباید از 100 کاراکتر بیشتر باشد.");
+        RuleFor(x => x.Role)
+            .NotEmpty()
+            .WithMessage("نقش کاربری الزامی است.");
     }
 }
 
@@ -37,7 +40,7 @@ public class CreateUserCommandHandler : IRequestHandler<CreateUserCommand, Guid>
 
     public async Task<Guid> Handle(CreateUserCommand request, CancellationToken cancellationToken)
     {
-        var (result, userId) = await _identityService.CreateUserAsync(request.PhoneNumber, request.Password, request.FullName);
+        var (result, userId) = await _identityService.CreateUserAsync(request.PhoneNumber, request.Password, request.FullName, request.Role);
 
         if (!result.Succeeded)
         {
