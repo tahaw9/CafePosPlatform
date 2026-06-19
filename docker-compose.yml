@@ -21,7 +21,7 @@ services:
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
       - RUN_MIGRATIONS=true
-      - ConnectionStrings__CafePosBackendDb=Host=database;Port=5432;Database=CafePosDb;Username=postgres;Password=2580782580
+      - ConnectionStrings__CafePosBackendDb=Host=database;Port=5433;Database=CafePosDb;Username=postgres;Password=2580782580
     ports:
       - "8080:8080"
     depends_on:

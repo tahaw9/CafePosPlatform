@@ -64,8 +64,9 @@ public class CreateOrderCommandHandler : IRequestHandler<CreateOrderCommand, Gui
         DateTime iranBusinessEnd = iranBusinessStart.AddDays(1); // ۶ صبح فردا
 
         // ۳. تبدیل این دو زمان ایران به UTC جهت کوئری زدن روی دیتابیس (چون CreatedAt به UTC ذخیره می‌شود)
-        var utcStart = TimeZoneInfo.ConvertTimeToUtc(iranBusinessStart, iranTimeZone);
-        var utcEnd = TimeZoneInfo.ConvertTimeToUtc(iranBusinessEnd, iranTimeZone);
+        DateTimeOffset utcStart = TimeZoneInfo.ConvertTimeToUtc(iranBusinessStart, iranTimeZone);
+        DateTimeOffset utcEnd = TimeZoneInfo.ConvertTimeToUtc(iranBusinessEnd, iranTimeZone);
+        var orderItems = _mapper.Map<List<OrderItem>>(request.Items);
         var strategy = _context.Database.CreateExecutionStrategy();
         return await strategy.ExecuteAsync(async () =>
         {
@@ -88,8 +89,8 @@ public class CreateOrderCommandHandler : IRequestHandler<CreateOrderCommand, Gui
                     OrderCode = lastOrderCode + 1,
                     PaymentMethod = request.PaymentMethod,
                     IsPaid = (bool)(request.IsPaid != null ? request.IsPaid : false),
-                    Items = _mapper.Map<List<OrderItem>>(request.Items),
-                    Id = Guid.NewGuid()
+                    Id = Guid.NewGuid(),
+                    Items = orderItems,
                 };
 
                 await _context.Orders.AddAsync(entity);
