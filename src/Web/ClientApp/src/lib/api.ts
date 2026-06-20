@@ -19,6 +19,23 @@ function resolveApiBaseUrl(): string {
   return '/api';
 }
 
+export function getImageUrl(path: string | null | undefined): string {
+  if (!path) return '';
+  if (path.startsWith('http') || path.startsWith('data:') || path.startsWith('blob:')) return path;
+  
+  const env = (import.meta as any).env;
+  let baseUrl = '';
+  
+  if (env.VITE_API_URL) {
+    baseUrl = env.VITE_API_URL.replace(/\/api$/, '');
+  } else {
+    const aspireUrl = env.services__webapi__https__0 || env.services__webapi__http__0;
+    if (aspireUrl) baseUrl = aspireUrl;
+  }
+  
+  return `${baseUrl.replace(/\/$/, '')}/${path.replace(/^\//, '')}`;
+}
+
 const api = axios.create({
   baseURL: resolveApiBaseUrl(),
 });

@@ -8,6 +8,7 @@ import CartModal from '../components/Customer/CartModal';
 import CallWaiterFAB from '../components/Customer/CallWaiterFAB';
 import { useMenuStore, MenuItem } from '../store/useMenuStore';
 import { motion, AnimatePresence } from 'framer-motion';
+import { getImageUrl } from '../lib/api';
 
 import DeveloperBadge from '../components/Customer/DeveloperBadge';
 
@@ -62,7 +63,7 @@ export default function CustomerMenu() {
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.5 }}
-                src={filteredItems[0]?.image || 'https://images.unsplash.com/photo-1497935586351-b67a49e012bf?w=800&q=80'}
+                src={getImageUrl(filteredItems[0]?.image) || 'https://images.unsplash.com/photo-1497935586351-b67a49e012bf?w=800&q=80'}
                 alt="Category Cover"
                 className="w-full h-full object-cover opacity-60"
               />

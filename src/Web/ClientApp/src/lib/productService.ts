@@ -3,7 +3,7 @@ import api from './api';
 export interface CreateProductRequest {
   name: string;
   price: number;
-  imageUrl: string;
+  base64Image: string;
   isAvailable: boolean;
   description?: string;
   categoryId: string;
@@ -13,7 +13,7 @@ export interface UpdateProductRequest {
   id: string;
   name: string;
   price: number;
-  imageUrl: string;
+  base64Image?: string;
   isAvailable: boolean;
   description?: string;
   categoryId: string;

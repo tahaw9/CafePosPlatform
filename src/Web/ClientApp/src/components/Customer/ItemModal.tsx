@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, Minus, Plus } from 'lucide-react';
 import { MenuItem } from '../../store/useMenuStore';
 import { useCartStore } from '../../store/useCartStore';
+import { getImageUrl } from '../../lib/api';
 import toast from 'react-hot-toast';
 
 interface ItemModalProps {
@@ -57,7 +58,7 @@ export default function ItemModal({ item, onClose }: ItemModalProps) {
         >
           {/* Header Image */}
           <div className="relative h-44 w-full shrink-0">
-            <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
+            <img src={getImageUrl(item.image)} alt={item.name} className="w-full h-full object-cover" />
             <button 
               onClick={onClose}
               className="absolute top-4 left-4 w-10 h-10 bg-black/40 backdrop-blur-md rounded-full flex items-center justify-center text-white transition-transform active:scale-90"

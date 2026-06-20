@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { useMenuStore } from '../store/useMenuStore';
+import { useMenuStore, MenuItem } from '../store/useMenuStore';
 import { useOrderStore, OrderItem, PaymentMethod, OrderStatus } from '../store/useOrderStore';
+import { getImageUrl } from '../lib/api';
 import { Minus, Plus, Trash2, Printer } from 'lucide-react';
 import toast from 'react-hot-toast';
 import ThermalReceipt from '../components/Admin/ThermalReceipt';
@@ -236,7 +237,7 @@ export default function AdminPOS() {
                 className={`bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden cursor-pointer transition-transform hover:scale-[1.02] active:scale-[0.98] ${!item.isAvailable ? 'opacity-50 grayscale cursor-not-allowed' : ''}`}
               >
                 <div className="h-24 w-full bg-gray-200">
-                  <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
+                  <img src={getImageUrl(item.image)} alt={item.name} className="w-full h-full object-cover" />
                 </div>
                 <div className="p-3">
                   <div className="font-bold text-sm mb-1 line-clamp-1">{item.name}</div>

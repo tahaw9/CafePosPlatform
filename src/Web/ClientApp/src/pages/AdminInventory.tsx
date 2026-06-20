@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useMenuStore, MenuItem } from '../store/useMenuStore';
+import { getImageUrl } from '../lib/api';
 import * as Dialog from '@radix-ui/react-dialog';
 import * as AlertDialog from '@radix-ui/react-alert-dialog';
 import { Plus, Edit2, Trash2, Search, X } from 'lucide-react';
@@ -8,7 +9,7 @@ import Dropdown from '../components/Admin/Dropdown';
 
 export default function AdminInventory() {
   const { items, categories, fetchMenu, addItem, updateItem, deleteItem, toggleItemAvailability, isSubmitting, isLoading } = useMenuStore();
-  
+
   const [searchQuery, setSearchQuery] = useState('');
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
@@ -19,7 +20,8 @@ export default function AdminInventory() {
     name: '',
     price: '',
     category: '',
-    image: '',
+    imagePreview: '',
+    imageFile: null as File | null,
     description: '',
     isAvailable: true,
   });
@@ -42,13 +44,14 @@ export default function AdminInventory() {
   // Handle open modal for create
   const openCreateModal = () => {
     setEditingItem(null);
-    setFormData({ 
-      name: '', 
-      price: '', 
-      category: categories[0]?.id || '', 
-      image: '', 
-      description: '', 
-      isAvailable: true 
+    setFormData({
+      name: '',
+      price: '',
+      category: categories[0]?.id || '',
+      imagePreview: '',
+      imageFile: null,
+      description: '',
+      isAvailable: true
     });
     setIsFormModalOpen(true);
   };
@@ -60,7 +63,8 @@ export default function AdminInventory() {
       name: item.name,
       price: item.price.toString(),
       category: item.category,
-      image: item.image,
+      imagePreview: item.image || '',
+      imageFile: null,
       description: item.description || '',
       isAvailable: item.isAvailable,
     });
@@ -75,11 +79,33 @@ export default function AdminInventory() {
     }, 200);
   };
 
+  const toBase64 = (file: File) => new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = error => reject(error);
+  });
+
   // Handle submit form
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.name || !formData.price || !formData.category || !formData.image) {
+    if (!formData.name || !formData.price || !formData.category) {
       toast.error('لطفا تمام فیلدهای اجباری را پر کنید');
+      return;
+    }
+
+    let base64Image = '';
+    if (formData.imageFile) {
+      try {
+        base64Image = await toBase64(formData.imageFile);
+      } catch (err) {
+        toast.error('خطا در پردازش تصویر');
+        return;
+      }
+    }
+
+    if (!editingItem && !base64Image) {
+      toast.error('لطفا یک تصویر انتخاب کنید');
       return;
     }
 
@@ -87,7 +113,8 @@ export default function AdminInventory() {
       name: formData.name,
       price: Number(formData.price),
       category: formData.category,
-      image: formData.image,
+      image: '', // This will be ignored or kept as empty string
+      base64Image: base64Image !== '' ? base64Image : undefined,
       description: formData.description,
       isAvailable: formData.isAvailable,
     };
@@ -128,7 +155,7 @@ export default function AdminInventory() {
     <div className="p-6 h-full flex flex-col">
       <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <h1 className="text-2xl font-black text-[#0f3229]">انبار و منو</h1>
-        
+
         <div className="flex w-full sm:w-auto items-center gap-3">
           <div className="relative w-full sm:w-64">
             <input
@@ -141,7 +168,7 @@ export default function AdminInventory() {
             />
             <Search className="w-4 h-4 text-gray-400 absolute right-3 top-1/2 -translate-y-1/2" />
           </div>
-          <button 
+          <button
             onClick={openCreateModal}
             className="flex items-center gap-2 bg-[#0f3229] text-[#d4af37] px-4 py-2.5 rounded-xl font-bold hover:bg-[#164237] transition-colors whitespace-nowrap text-sm"
           >
@@ -170,13 +197,13 @@ export default function AdminInventory() {
                 return (
                   <tr key={item.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
                     <td className="p-4 text-right">
-                      <img src={item.image} alt={item.name} className="w-12 h-12 rounded-lg object-cover" />
+                      <img src={getImageUrl(item.image)} alt={item.name} className="w-12 h-12 rounded-lg object-cover" />
                     </td>
                     <td className="p-4 font-bold text-right">{item.name}</td>
                     <td className="p-4 text-gray-500 text-right">{category?.name}</td>
                     <td className="p-4 text-right">{item.price.toLocaleString()}</td>
                     <td className="p-4 text-right">
-                      <button 
+                      <button
                         onClick={async () => {
                           try {
                             await toggleItemAvailability(item.id);
@@ -229,7 +256,7 @@ export default function AdminInventory() {
             <Dialog.Title className="text-xl font-bold text-gray-900 mb-6 shrink-0">
               {editingItem ? 'ویرایش محصول' : 'افزودن محصول جدید'}
             </Dialog.Title>
-            
+
             <form onSubmit={handleSubmit} className="space-y-4 overflow-y-auto custom-scrollbar flex-1 pr-1">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">نام محصول *</label>
@@ -237,7 +264,7 @@ export default function AdminInventory() {
                   type="text"
                   required
                   value={formData.name}
-                  onChange={(e) => setFormData({...formData, name: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   className="w-full border border-gray-200 bg-white text-gray-900 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#0f3229]"
                   placeholder="مثال: لاته"
                 />
@@ -250,7 +277,7 @@ export default function AdminInventory() {
                   required
                   min="0"
                   value={formData.price}
-                  onChange={(e) => setFormData({...formData, price: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, price: e.target.value })}
                   className="w-full border border-gray-200 bg-white text-gray-900 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#0f3229]"
                   placeholder="مثال: 85000"
                 />
@@ -260,30 +287,41 @@ export default function AdminInventory() {
                 <label className="block text-sm font-medium text-gray-700 mb-1">دسته‌بندی *</label>
                 <Dropdown
                   value={formData.category}
-                  onChange={(val) => setFormData({...formData, category: val})}
+                  onChange={(val) => setFormData({ ...formData, category: val })}
                   options={categories.map(cat => ({ value: cat.id, label: cat.name }))}
                   triggerClassName="w-full py-2.5 text-right font-medium bg-white text-gray-900 border border-gray-200"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">آدرس تصویر (URL) *</label>
-                <input
-                  type="url"
-                  required
-                  value={formData.image}
-                  onChange={(e) => setFormData({...formData, image: e.target.value})}
-                  className="w-full border border-gray-200 bg-white text-gray-900 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#0f3229] text-left font-mono placeholder:font-sans placeholder:text-right"
-                  placeholder="https://..."
-                  dir="ltr"
-                />
+                <label className="block text-sm font-medium text-gray-700 mb-1">تصویر محصول *</label>
+                <div className="flex flex-col gap-3">
+                  {formData.imagePreview && (
+                    <img src={getImageUrl(formData.imagePreview)} alt="Preview" className="w-24 h-24 rounded-lg object-cover border border-gray-200" />
+                  )}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        setFormData({
+                          ...formData,
+                          imageFile: file,
+                          imagePreview: URL.createObjectURL(file)
+                        });
+                      }
+                    }}
+                    className="w-full border border-gray-200 bg-white text-gray-900 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#0f3229] file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-bold file:bg-[#0f3229] file:text-[#d4af37] hover:file:bg-[#164237]"
+                  />
+                </div>
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">توضیحات</label>
                 <textarea
                   value={formData.description}
-                  onChange={(e) => setFormData({...formData, description: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                   className="w-full border border-gray-200 bg-white text-gray-900 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#0f3229] resize-none h-24"
                   placeholder="ترکیبات یا توضیحات بیشتر..."
                 />
@@ -294,7 +332,7 @@ export default function AdminInventory() {
                   type="checkbox"
                   id="isAvailable"
                   checked={formData.isAvailable}
-                  onChange={(e) => setFormData({...formData, isAvailable: e.target.checked})}
+                  onChange={(e) => setFormData({ ...formData, isAvailable: e.target.checked })}
                   className="w-4 h-4 text-[#0f3229] border-gray-300 rounded focus:ring-[#0f3229]"
                 />
                 <label htmlFor="isAvailable" className="mr-2 text-sm font-medium text-gray-700">
@@ -303,7 +341,7 @@ export default function AdminInventory() {
               </div>
 
               <div className="pt-4 flex gap-3 shrink-0 border-t border-gray-100 mt-2">
-                <button 
+                <button
                   type="submit"
                   disabled={isSubmitting}
                   className={`flex-1 py-2.5 rounded-lg font-medium transition-colors ${isSubmitting ? 'bg-gray-400 cursor-not-allowed text-gray-200' : 'bg-[#0f3229] hover:bg-[#0b261f] text-white'}`}
@@ -311,8 +349,8 @@ export default function AdminInventory() {
                   {isSubmitting ? 'در حال ارسال...' : editingItem ? 'ذخیره تغییرات' : 'افزودن محصول'}
                 </button>
                 <Dialog.Close asChild>
-                  <button 
-                    type="button" 
+                  <button
+                    type="button"
                     className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-800 py-2.5 rounded-lg font-medium transition-colors"
                   >
                     انصراف
@@ -340,7 +378,7 @@ export default function AdminInventory() {
                 </button>
               </AlertDialog.Cancel>
               <AlertDialog.Action asChild>
-                <button 
+                <button
                   onClick={confirmDelete}
                   className="px-4 py-2 rounded-lg font-medium bg-red-100 text-red-700 hover:bg-red-200 transition-colors"
                 >

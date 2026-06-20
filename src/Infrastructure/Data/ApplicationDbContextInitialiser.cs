@@ -112,9 +112,9 @@ public class ApplicationDbContextInitialiser
                     Icon = "Coffee",
                     Products = new List<Product>
                     {
-                        new Product { Id = Guid.NewGuid(), Name = "اسپرسو", Price = 55000, ImageUrl = "https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?w=400&q=80", IsAvailable = true, Description = "یک شات اسپرسو خالص", CategoryId = coffeeId },
-                        new Product { Id = Guid.NewGuid(), Name = "لاته", Price = 85000, ImageUrl = "https://images.unsplash.com/photo-1570968915860-54d5c301fa9f?w=400&q=80", IsAvailable = true, Description = "ترکیب اسپرسو و شیر گرم", CategoryId = coffeeId },
-                        new Product { Id = Guid.NewGuid(), Name = "کاپوچینو", Price = 90000, ImageUrl = "https://images.unsplash.com/photo-1534778101976-62847782c213?w=400&q=80", IsAvailable = false, Description = "اسپرسو با فوم شیر فراوان", CategoryId = coffeeId }
+                        new Product { Id = Guid.NewGuid(), Name = "اسپرسو", Price = 55000, ImageUrl = "/images/products/espresso.jpg", IsAvailable = true, Description = "یک شات اسپرسو خالص", CategoryId = coffeeId },
+                        new Product { Id = Guid.NewGuid(), Name = "لاته", Price = 85000, ImageUrl = "/images/products/latte.jpg", IsAvailable = true, Description = "ترکیب اسپرسو و شیر گرم", CategoryId = coffeeId },
+                        new Product { Id = Guid.NewGuid(), Name = "کاپوچینو", Price = 90000, ImageUrl = "/images/products/cappuccino.jpg", IsAvailable = false, Description = "اسپرسو با فوم شیر فراوان", CategoryId = coffeeId }
                     }
                 },
                 new Category
@@ -124,8 +124,8 @@ public class ApplicationDbContextInitialiser
                     Icon = "GlassWater",
                     Products = new List<Product>
                     {
-                        new Product { Id = Guid.NewGuid(), Name = "موخیتو", Price = 110000, ImageUrl = "https://images.unsplash.com/photo-1551538827-9c037cb4f32a?w=400&q=80", IsAvailable = true, Description = "ترکیب لیمو، نعناع و سودا", CategoryId = coldId },
-                        new Product { Id = Guid.NewGuid(), Name = "آیس لاته", Price = 95000, ImageUrl = "https://images.unsplash.com/photo-1461023058943-07fcbe16d735?w=400&q=80", IsAvailable = true, Description = "لاته سرد با یخ", CategoryId = coldId }
+                        new Product { Id = Guid.NewGuid(), Name = "موخیتو", Price = 110000, ImageUrl = "/images/products/mojito.jpg", IsAvailable = true, Description = "ترکیب لیمو، نعناع و سودا", CategoryId = coldId },
+                        new Product { Id = Guid.NewGuid(), Name = "آیس لاته", Price = 95000, ImageUrl = "/images/products/iced-latte.jpg", IsAvailable = true, Description = "لاته سرد با یخ", CategoryId = coldId }
                     }
                 },
                 new Category
@@ -135,8 +135,8 @@ public class ApplicationDbContextInitialiser
                     Icon = "Pizza",
                     Products = new List<Product>
                     {
-                        new Product { Id = Guid.NewGuid(), Name = "پیتزا پپرونی", Price = 350000, ImageUrl = "https://images.unsplash.com/photo-1628840042765-356cda07504e?w=400&q=80", IsAvailable = true, Description = "پیتزا با پپرونی و پنیر فراوان", CategoryId = pizzaId },
-                        new Product { Id = Guid.NewGuid(), Name = "پیتزا مارگاریتا", Price = 290000, ImageUrl = "https://images.unsplash.com/photo-1574071318508-1cdbab80d002?w=400&q=80", IsAvailable = true, Description = "پیتزا کلاسیک با گوجه و ریحان", CategoryId = pizzaId }
+                        new Product { Id = Guid.NewGuid(), Name = "پیتزا پپرونی", Price = 350000, ImageUrl = "/images/products/pepperoni.jpg", IsAvailable = true, Description = "پیتزا با پپرونی و پنیر فراوان", CategoryId = pizzaId },
+                        new Product { Id = Guid.NewGuid(), Name = "پیتزا مارگاریتا", Price = 290000, ImageUrl = "/images/products/margarita.jpg", IsAvailable = true, Description = "پیتزا کلاسیک با گوجه و ریحان", CategoryId = pizzaId }
                     }
                 },
                 new Category
@@ -146,7 +146,7 @@ public class ApplicationDbContextInitialiser
                     Icon = "Sandwich",
                     Products = new List<Product>
                     {
-                        new Product { Id = Guid.NewGuid(), Name = "برگر کلاسیک", Price = 280000, ImageUrl = "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=400&q=80", IsAvailable = true, Description = "برگر گوشت با پنیر، کاهو و گوجه", CategoryId = fastfoodId }
+                        new Product { Id = Guid.NewGuid(), Name = "برگر کلاسیک", Price = 280000, ImageUrl = "/images/products/burger.jpg", IsAvailable = true, Description = "برگر گوشت با پنیر، کاهو و گوجه", CategoryId = fastfoodId }
                     }
                 },
                 new Category
@@ -156,7 +156,7 @@ public class ApplicationDbContextInitialiser
                     Icon = "Croissant",
                     Products = new List<Product>
                     {
-                        new Product { Id = Guid.NewGuid(), Name = "کروسان کره‌ای", Price = 75000, ImageUrl = "https://images.unsplash.com/photo-1555507036-ab1f40ce88cb?w=400&q=80", IsAvailable = true, Description = "کروسان تازه و ترد", CategoryId = pastryId }
+                        new Product { Id = Guid.NewGuid(), Name = "کروسان کره‌ای", Price = 75000, ImageUrl = "/images/products/croissant.jpg", IsAvailable = true, Description = "کروسان تازه و ترد", CategoryId = pastryId }
                     }
                 }
             );

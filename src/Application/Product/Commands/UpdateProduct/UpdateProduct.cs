@@ -7,7 +7,7 @@ public record UpdateProductCommand : IRequest<bool>
     public Guid Id { get; set; }
     public string Name { get; set; } = string.Empty;
     public decimal Price { get; set; }
-    public string ImageUrl { get; set; } = string.Empty;
+    public string? Base64Image { get; set; }
     public bool IsAvailable { get; set; }
     public string? Description { get; set; }
     public Guid CategoryId { get; set; }
@@ -27,10 +27,12 @@ public class UpdateProductCommandValidator : AbstractValidator<UpdateProductComm
 public class UpdateProductCommandHandler : IRequestHandler<UpdateProductCommand, bool>
 {
     private readonly IApplicationDbContext _context;
+    private readonly IFileStorageService _fileStorageService;
 
-    public UpdateProductCommandHandler(IApplicationDbContext context)
+    public UpdateProductCommandHandler(IApplicationDbContext context, IFileStorageService fileStorageService)
     {
         _context = context;
+        _fileStorageService = fileStorageService;
     }
 
     public async Task<bool> Handle(UpdateProductCommand request, CancellationToken cancellationToken)
@@ -38,9 +40,17 @@ public class UpdateProductCommandHandler : IRequestHandler<UpdateProductCommand,
         var getEntity = await _context.Products.FindAsync(new object[] { request.Id }, cancellationToken);
         if(getEntity == null) { throw new NullReferenceException("Product not found"); }
 
+        if (!string.IsNullOrEmpty(request.Base64Image))
+        {
+            if (!string.IsNullOrEmpty(getEntity.ImageUrl))
+            {
+                _fileStorageService.DeleteImage(getEntity.ImageUrl);
+            }
+            getEntity.ImageUrl = await _fileStorageService.SaveBase64ImageAsync(request.Base64Image, "/images/products");
+        }
+
         getEntity.Name = request.Name;
         getEntity.CategoryId = request.CategoryId;
-        getEntity.ImageUrl = request.ImageUrl;
         getEntity.IsAvailable = request.IsAvailable;
         getEntity.Price = request.Price;
         getEntity.Description = request.Description;    

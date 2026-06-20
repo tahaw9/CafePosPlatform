@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Trash2, Plus, Minus } from 'lucide-react';
+import { X, Trash2, Plus, Minus, Loader2 } from 'lucide-react';
 import { useCartStore } from '../../store/useCartStore';
 import toast from 'react-hot-toast';
 import { useParams } from 'react-router-dom';
@@ -22,6 +22,7 @@ export default function CartModal({ isOpen, onClose, tableId }: CartModalProps) 
 
   const [connection, setConnection] = useState<HubConnection | null>(null);
   const [tables, setTables] = useState<TableDto[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     // Connect to SignalR
@@ -62,7 +63,8 @@ export default function CartModal({ isOpen, onClose, tableId }: CartModalProps) 
   }, []);
 
   const handleCheckout = async () => {
-    if (items.length === 0) return;
+    if (items.length === 0 || isSubmitting) return;
+    setIsSubmitting(true);
     
     try {
       // Find the corresponding Guid for the table name or table ID
@@ -108,6 +110,8 @@ export default function CartModal({ isOpen, onClose, tableId }: CartModalProps) 
         || error?.message
         || 'خطا در ثبت سفارش';
       toast.error(message);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -201,9 +205,21 @@ export default function CartModal({ isOpen, onClose, tableId }: CartModalProps) 
                 </div>
                 <button 
                   onClick={handleCheckout}
-                  className="w-full bg-cafe-text text-[#0f3229] font-bold py-4 rounded-xl flex items-center justify-center active:scale-[0.98] transition-transform"
+                  disabled={isSubmitting}
+                  className={`w-full font-bold py-4 rounded-xl flex items-center justify-center transition-all ${
+                    isSubmitting 
+                      ? 'bg-[#164237] text-[#8fa8a4] cursor-not-allowed' 
+                      : 'bg-cafe-text text-[#0f3229] active:scale-[0.98]'
+                  }`}
                 >
-                  ثبت نهایی سفارش
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 size={20} className="animate-spin ml-2" />
+                      در حال پردازش...
+                    </>
+                  ) : (
+                    'ثبت نهایی سفارش'
+                  )}
                 </button>
               </div>
             )}

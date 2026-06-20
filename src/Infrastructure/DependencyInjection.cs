@@ -2,6 +2,7 @@ using CafePosBackend.Application.Common.Interfaces;
 using CafePosBackend.Infrastructure.Data;
 using CafePosBackend.Infrastructure.Data.Interceptors;
 using CafePosBackend.Infrastructure.Identity;
+using CafePosBackend.Infrastructure.Services;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
@@ -108,5 +109,6 @@ public static class DependencyInjection
 
         builder.Services.AddSingleton(TimeProvider.System);
         builder.Services.AddTransient<IIdentityService, IdentityService>();
+        builder.Services.AddTransient<IFileStorageService, LocalFileStorageService>();
     }
 }

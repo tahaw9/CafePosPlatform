@@ -1,6 +1,7 @@
 import React from 'react';
 import { Plus } from 'lucide-react';
 import { MenuItem } from '../../store/useMenuStore';
+import { getImageUrl } from '../../lib/api';
 
 interface MenuCardProps {
   item: MenuItem;
@@ -15,7 +16,7 @@ export default function MenuCard({ item, onClick }: MenuCardProps) {
     >
       <div className="relative h-32 w-full">
         <img 
-          src={item.image} 
+          src={getImageUrl(item.image)} 
           alt={item.name} 
           className="w-full h-full object-cover"
         />

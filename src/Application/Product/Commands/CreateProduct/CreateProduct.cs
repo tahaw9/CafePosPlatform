@@ -9,7 +9,7 @@ public record CreateProductCommand : IRequest<Guid>
 {
     public string Name { get; set; } = string.Empty;
     public decimal Price { get; set; }
-    public string ImageUrl { get; set; } = string.Empty;
+    public string Base64Image { get; set; } = string.Empty;
     public bool IsAvailable { get; set; }
     public string? Description { get; set; }
     public Guid CategoryId { get; set; }
@@ -25,14 +25,22 @@ public class CreateProductCommandValidator : AbstractValidator<CreateProductComm
 public class CreateProductCommandHandler : IRequestHandler<CreateProductCommand, Guid>
 {
     private readonly IApplicationDbContext _context;
+    private readonly IFileStorageService _fileStorageService;
 
-    public CreateProductCommandHandler(IApplicationDbContext context)
+    public CreateProductCommandHandler(IApplicationDbContext context, IFileStorageService fileStorageService)
     {
         _context = context;
+        _fileStorageService = fileStorageService;
     }
 
     public async Task<Guid> Handle(CreateProductCommand request, CancellationToken cancellationToken)
     {
+        string imageUrl = string.Empty;
+        if (!string.IsNullOrEmpty(request.Base64Image))
+        {
+            imageUrl = await _fileStorageService.SaveBase64ImageAsync(request.Base64Image, "/images/products");
+        }
+
         var entity = new CafePosBackend.Domain.Entities.Product
         {
             CategoryId = request.CategoryId,
@@ -41,7 +49,7 @@ public class CreateProductCommandHandler : IRequestHandler<CreateProductCommand,
             Description = request.Description,
             Name = request.Name,
             Price = request.Price,
-            ImageUrl = request.ImageUrl,
+            ImageUrl = imageUrl,
             IsAvailable = request.IsAvailable,
             Id = Guid.NewGuid()
         };

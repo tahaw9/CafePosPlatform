@@ -25,8 +25,8 @@ interface MenuState {
   isSubmitting: boolean;
   isLoading: boolean;
   fetchMenu: () => Promise<void>;
-  addItem: (item: Omit<MenuItem, 'id'>) => Promise<void>;
-  updateItem: (id: string, item: Partial<Omit<MenuItem, 'id'>>) => Promise<void>;
+  addItem: (item: Omit<MenuItem, 'id'> & { base64Image?: string }) => Promise<void>;
+  updateItem: (id: string, item: Partial<Omit<MenuItem, 'id'>> & { base64Image?: string }) => Promise<void>;
   deleteItem: (id: string) => Promise<void>;
   toggleItemAvailability: (id: string) => Promise<void>;
 }
@@ -81,14 +81,14 @@ export const useMenuStore = create<MenuState>((set, get) => ({
       const newId = await createProduct({
         name: item.name,
         price: item.price,
-        imageUrl: item.image,
+        base64Image: item.base64Image || '',
         isAvailable: item.isAvailable,
         description: item.description,
         categoryId: item.category,
       });
 
       set((state) => ({
-        items: [...state.items, { ...item, id: newId }],
+        items: [...state.items, { ...item, id: newId, image: item.base64Image || '' }],
       }));
     } catch (error: any) {
       const message = error?.response?.data?.title
@@ -114,7 +114,7 @@ export const useMenuStore = create<MenuState>((set, get) => ({
         id,
         name: item.name !== undefined ? item.name : original.name,
         price: item.price !== undefined ? item.price : original.price,
-        imageUrl: item.image !== undefined ? item.image : original.image,
+        base64Image: item.base64Image,
         isAvailable: item.isAvailable !== undefined ? item.isAvailable : original.isAvailable,
         description: item.description !== undefined ? item.description : original.description,
         categoryId: item.category !== undefined ? item.category : original.category
@@ -123,7 +123,7 @@ export const useMenuStore = create<MenuState>((set, get) => ({
       await updateProduct(payload);
 
       set((state) => ({
-        items: state.items.map((i) => (i.id === id ? { ...i, ...item } : i))
+        items: state.items.map((i) => (i.id === id ? { ...i, ...item, image: item.base64Image || i.image } : i))
       }));
     } catch (error: any) {
       const message = error?.response?.data?.title
