@@ -1,18 +1,19 @@
 import React, { forwardRef } from 'react';
 import { OrderItem } from '../../store/useOrderStore';
 
-interface ThermalReceiptProps {
+export interface ThermalReceiptProps {
   cart: OrderItem[];
   subtotal: number;
   discountAmount: number;
   total: number;
-  tableId: string;
+  isTakeaway: boolean;
+  tableName?: string;
   orderId?: string;
   orderCode?: number;
 }
 
 const ThermalReceipt = forwardRef<HTMLDivElement, ThermalReceiptProps>(
-  ({ cart, subtotal, discountAmount, total, tableId, orderId, orderCode }, ref) => {
+  ({ cart, subtotal, discountAmount, total, isTakeaway, tableName, orderId, orderCode }, ref) => {
     const dateStr = new Date().toLocaleDateString('fa-IR');
     const timeStr = new Date().toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' });
 
@@ -21,19 +22,21 @@ const ThermalReceipt = forwardRef<HTMLDivElement, ThermalReceiptProps>(
         <div className="text-center mb-4 border-b-2 border-black border-dashed pb-2">
           <h1 className="font-black text-2xl mb-1 text-center font-sans tracking-tighter">THINK</h1>
           <h2 className="font-serif italic text-sm text-center mb-2" style={{ fontFamily: 'cursive' }}>Coffee</h2>
-          <div className="text-sm font-bold">
-            {tableId === 'takeaway' ? 'بیرون‌بر' : `شماره میز: ${tableId}`}
-          </div>
+          {!isTakeaway && tableName && (
+            <div className="text-sm font-bold">
+              {tableName}
+            </div>
+          )}
           <div className="text-xs text-gray-500 mt-1">
             صندوق‌دار: ادمین
           </div>
           {orderCode ? (
-            <div className="text-sm font-bold mt-1 text-gray-700">
-              شماره سفارش: <span className="font-mono">{orderCode}</span>
+            <div className="text-lg font-black mt-2 mb-1 text-black bg-gray-100 py-1 rounded border border-gray-300">
+              کد سفارش: <span className="font-mono">{orderCode}</span>
             </div>
           ) : orderId ? (
-            <div className="text-sm font-bold mt-1 text-gray-700">
-              شماره سفارش: <span className="font-mono">{orderId.replace('ORD-', '')}</span>
+            <div className="text-lg font-black mt-2 mb-1 text-black bg-gray-100 py-1 rounded border border-gray-300">
+              کد سفارش: <span className="font-mono">{orderId.replace('ORD-', '')}</span>
             </div>
           ) : null}
           <div className="flex justify-between text-xs mt-2">

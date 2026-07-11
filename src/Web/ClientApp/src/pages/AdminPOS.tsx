@@ -6,6 +6,7 @@ import { getImageUrl } from '../lib/api';
 import { Minus, Plus, Trash2, Printer } from 'lucide-react';
 import toast from 'react-hot-toast';
 import ThermalReceipt from '../components/Admin/ThermalReceipt';
+import { printReceiptViaIframe } from '../lib/printUtils';
 import Dropdown from '../components/Admin/Dropdown';
 import * as Dialog from '@radix-ui/react-dialog';
 export default function AdminPOS() {
@@ -36,10 +37,17 @@ export default function AdminPOS() {
 
   const executePrint = () => {
     setIsPreviewOpen(false);
-    // Slight delay to allow modal to close completely before printing
-    setTimeout(() => {
-      window.print();
-    }, 100);
+    
+    printReceiptViaIframe({
+      cart,
+      subtotal,
+      discountAmount,
+      total,
+      isTakeaway: selectedTable === 'takeaway',
+      tableName: selectedTable === 'takeaway' ? undefined : (tables.find(t => t.id === selectedTable)?.name || selectedTable),
+      orderId: editingOrder?.id,
+      orderCode: editingOrder?.orderCode
+    });
   };
 
   useEffect(() => {
@@ -422,7 +430,8 @@ export default function AdminPOS() {
                   subtotal={subtotal}
                   discountAmount={discountAmount}
                   total={total}
-                  tableId={selectedTable}
+                  isTakeaway={selectedTable === 'takeaway'}
+                  tableName={selectedTable === 'takeaway' ? undefined : (tables.find(t => t.id === selectedTable)?.name || selectedTable)}
                   orderId={editingOrder?.id}
                   orderCode={editingOrder?.orderCode}
                 />
@@ -446,18 +455,6 @@ export default function AdminPOS() {
         </Dialog.Portal>
       </Dialog.Root>
 
-      {/* Hidden Receipt for Printing */}
-      <div className="hidden print:block print:absolute print:top-0 print:left-0 print:w-full print:bg-white print:z-[9999] print:min-h-screen">
-        <ThermalReceipt 
-          cart={cart}
-          subtotal={subtotal}
-          discountAmount={discountAmount}
-          total={total}
-          tableId={selectedTable}
-          orderId={editingOrder?.id}
-          orderCode={editingOrder?.orderCode}
-        />
-      </div>
     </div>
   );
 }

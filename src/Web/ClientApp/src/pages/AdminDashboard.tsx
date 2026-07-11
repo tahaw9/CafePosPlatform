@@ -1,4 +1,4 @@
-import { MessageSquare, Info } from 'lucide-react';
+import { MessageSquare, Info, Printer, Loader2 } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useOrderStore, OrderStatus, PaymentMethod, Order } from '../store/useOrderStore';
@@ -7,6 +7,7 @@ import Dropdown from '../components/Admin/Dropdown';
 import OrderDetailModal from '../components/Admin/OrderDetailModal';
 import * as Dialog from '@radix-ui/react-dialog';
 import { useUnpaidOrderStore } from '../store/useUnpaidOrderStore';
+import { printReceiptViaIframe } from '../lib/printUtils';
 
 const STATUS_COLUMNS = [
   { id: 'pending', title: 'در انتظار', color: 'bg-red-100 text-red-800 border-red-200' },
@@ -24,6 +25,26 @@ export default function AdminDashboard() {
   const [targetUnpaidOrderId, setTargetUnpaidOrderId] = useState<string | null>(null);
   const [debtorName, setDebtorName] = useState('');
   const [debtorPhone, setDebtorPhone] = useState('');
+  
+  const [printingOrder, setPrintingOrder] = useState<Order | null>(null);
+
+  const handlePrint = (order: Order) => {
+    setPrintingOrder(order);
+    
+    printReceiptViaIframe({
+      cart: order.items,
+      subtotal: order.total,
+      discountAmount: order.discount ? (order.discount.type === 'amount' ? order.discount.value : (order.total * order.discount.value / 100)) : 0,
+      total: order.total - (order.discount ? (order.discount.type === 'amount' ? order.discount.value : (order.total * order.discount.value / 100)) : 0),
+      isTakeaway: order.tableId === 'takeaway',
+      tableName: order.tableNumber ? `میز ${order.tableNumber}` : undefined,
+      orderId: order.id,
+      orderCode: order.orderCode
+    });
+
+    // Clear loading state after iframe closes or shortly after
+    setTimeout(() => setPrintingOrder(null), 1000);
+  };
 
   useEffect(() => {
     fetchInitialData();
@@ -191,21 +212,32 @@ export default function AdminDashboard() {
                         }`}
                       />
                       
-                      {column.id !== 'completed' && (
-                        <div className="flex gap-2">
+                      <div className="flex gap-2">
+                        <button 
+                          onClick={() => handlePrint(order)}
+                          disabled={printingOrder?.id === order.id}
+                          className={`flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 py-2 rounded-lg text-sm font-medium transition-colors border border-gray-200 flex items-center justify-center gap-2 ${printingOrder?.id === order.id ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        >
+                          {printingOrder?.id === order.id ? <Loader2 size={16} className="animate-spin" /> : <Printer size={16} />}
+                          چاپ
+                        </button>
+                        {column.id !== 'completed' && (
                           <button 
                             onClick={() => navigate(`/admin/pos?orderId=${order.id}`)}
                             className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 py-2 rounded-lg text-sm font-medium transition-colors border border-gray-200"
                           >
                             ویرایش
                           </button>
-                          <button 
-                            onClick={() => handleCancelOrder(order.id)}
-                            className="flex-1 bg-red-50 hover:bg-red-100 text-red-600 py-2 rounded-lg text-sm font-medium transition-colors border border-red-200"
-                          >
-                            لغو سفارش
-                          </button>
-                        </div>
+                        )}
+                      </div>
+                      
+                      {column.id !== 'completed' && (
+                        <button 
+                          onClick={() => handleCancelOrder(order.id)}
+                          className="w-full bg-red-50 hover:bg-red-100 text-red-600 py-2 rounded-lg text-sm font-medium transition-colors border border-red-200"
+                        >
+                          لغو سفارش
+                        </button>
                       )}
                     </div>
                   </div>
