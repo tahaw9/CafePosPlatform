@@ -9,6 +9,7 @@ import ThermalReceipt from '../components/Admin/ThermalReceipt';
 import { printReceiptViaIframe } from '../lib/printUtils';
 import Dropdown from '../components/Admin/Dropdown';
 import * as Dialog from '@radix-ui/react-dialog';
+import { usePcPosStore } from '../store/usePcPosStore';
 export default function AdminPOS() {
   const { items, categories, fetchMenu } = useMenuStore();
   const { orders, addOrder, tables, updateOrderStatus, updateOrder, fetchOrderById } = useOrderStore();
@@ -141,67 +142,83 @@ export default function AdminPOS() {
     : (Number(discountValue) || 0);
   const total = subtotal - discountAmount;
 
-  const handleCheckout = (status: OrderStatus, isPaid: boolean) => {
+  const handleCheckout = async (status: OrderStatus, isPaid: boolean) => {
     if (cart.length === 0) {
       toast.error('سبد خرید خالی است');
       return;
     }
 
+    const { isPcPosEnabled, triggerPayment, reset } = usePcPosStore.getState();
+    const usePcPos = isPaid && paymentMethod === 'card' && isPcPosEnabled;
+
     const newOrderData = {
       tableId: selectedTable,
       items: cart,
-      status,
-      total: subtotal, // Pre-discount total
+      status: usePcPos ? 'pending' : status,
+      total: subtotal,
       discount: discountValue ? { type: discountType, value: Number(discountValue) } : null,
-      paymentMethod: isPaid ? paymentMethod : null,
-      isPaid
+      paymentMethod: usePcPos ? null : (isPaid ? paymentMethod : null),
+      isPaid: usePcPos ? false : isPaid
     };
 
-    if (isEditMode && editingOrderId) {
-      updateOrder(editingOrderId, newOrderData)
-        .then(() => {
-          toast.success('سفارش با موفقیت بروزرسانی شد');
-          
-          if (status === 'completed' || isPaid) {
-            handleOpenPreview();
-            setTimeout(() => {
-              navigate('/admin/dashboard');
-            }, 500);
-          } else {
-            navigate('/admin/dashboard');
-          }
-        })
-        .catch(() => {
-          // Error already handled
-        });
-      return;
-    }
-
-    addOrder(newOrderData)
-      .then(() => {
+    try {
+      let currentOrderId = editingOrderId;
+      
+      if (isEditMode && currentOrderId) {
+        await updateOrder(currentOrderId, newOrderData);
+        toast.success('سفارش با موفقیت بروزرسانی شد');
+      } else {
+        currentOrderId = await addOrder(newOrderData);
         toast.success('سفارش با موفقیت ثبت شد');
-        
-        // Call print when adding a new order
-        if (status === 'completed' || isPaid) {
-          handleOpenPreview();
-          
-          // Delay clearing to let the print frame capture the DOM
-          setTimeout(() => {
+      }
+
+      const cleanupAfterSuccess = () => {
+        handleOpenPreview();
+        setTimeout(() => {
+          if (isEditMode) navigate('/admin/dashboard');
+          else {
             setCart([]);
             setDiscountValue('');
             setSelectedTable('takeaway');
             setPaymentMethod('card');
-          }, 500);
+          }
+        }, 500);
+      };
+
+      if (usePcPos && currentOrderId) {
+        const success = await triggerPayment(currentOrderId, total);
+        if (success) {
+          await useOrderStore.getState().markAsPaid(currentOrderId, 'card');
+          toast.success('پرداخت تایید شد');
+          reset();
+          cleanupAfterSuccess();
         } else {
+          // If canceled or failed, order remains unpaid
+          if (isEditMode) navigate('/admin/dashboard');
+          else {
+            setCart([]);
+            setDiscountValue('');
+            setSelectedTable('takeaway');
+            setPaymentMethod('card');
+          }
+        }
+        return;
+      }
+
+      if (status === 'completed' || isPaid) {
+        cleanupAfterSuccess();
+      } else {
+        if (isEditMode) navigate('/admin/dashboard');
+        else {
           setCart([]);
           setDiscountValue('');
           setSelectedTable('takeaway');
           setPaymentMethod('card');
         }
-      })
-      .catch(() => {
-        // Error already handled
-      });
+      }
+    } catch {
+      // Error already handled
+    }
   };
 
   const handleCancelOrder = () => {

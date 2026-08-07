@@ -8,6 +8,7 @@ import OrderDetailModal from '../components/Admin/OrderDetailModal';
 import * as Dialog from '@radix-ui/react-dialog';
 import { useUnpaidOrderStore } from '../store/useUnpaidOrderStore';
 import { printReceiptViaIframe } from '../lib/printUtils';
+import { usePcPosStore } from '../store/usePcPosStore';
 
 const STATUS_COLUMNS = [
   { id: 'pending', title: 'در انتظار', color: 'bg-red-100 text-red-800 border-red-200' },
@@ -152,6 +153,21 @@ export default function AdminDashboard() {
                                   setIsUnpaidModalOpen(true);
                                   return;
                                 }
+
+                                if (val === 'card' && usePcPosStore.getState().isPcPosEnabled) {
+                                  const success = await usePcPosStore.getState().triggerPayment(order.id, order.total);
+                                  if (success) {
+                                    try {
+                                      await useOrderStore.getState().markAsPaid(order.id, 'card');
+                                      toast.success('پرداخت تایید شد');
+                                      usePcPosStore.getState().reset();
+                                    } catch {
+                                      // Error toast is already handled by the store
+                                    }
+                                  }
+                                  return;
+                                }
+
                                 try {
                                   await useOrderStore.getState().markAsPaid(order.id, val as PaymentMethod);
                                   toast.success('پرداخت تایید شد');

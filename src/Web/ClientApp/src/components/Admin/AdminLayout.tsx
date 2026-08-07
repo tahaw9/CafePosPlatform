@@ -4,6 +4,7 @@ import { LayoutDashboard, Grid2X2, MonitorSmartphone, Package, FileBarChart, Log
 import * as AlertDialog from '@radix-ui/react-alert-dialog';
 import { useAuthStore } from '../../store/useAuthStore';
 import { RealtimeProvider } from './RealtimeProvider';
+import PcPosModal from './PcPosModal';
 
 export default function AdminLayout() {
   const location = useLocation();
@@ -86,6 +87,7 @@ export default function AdminLayout() {
       <main className="flex-1 overflow-auto h-screen relative bg-gray-50 print:overflow-visible print:h-auto print:block print:bg-white">
         <Outlet />
       </main>
+      <PcPosModal />
     </div>
     </RealtimeProvider>
   );

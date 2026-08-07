@@ -5,12 +5,14 @@ import * as Dialog from '@radix-ui/react-dialog';
 import Dropdown from '../components/Admin/Dropdown';
 import { useAuthStore, UserRole, User } from '../store/useAuthStore';
 import { useOrderStore } from '../store/useOrderStore';
-import { KeyRound, UserPlus, ShieldBan, ShieldCheck, Mail, Phone, CalendarDays } from 'lucide-react';
+import { KeyRound, UserPlus, ShieldBan, ShieldCheck, Mail, Phone, CalendarDays, Monitor } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../lib/api';
+import { usePcPosStore } from '../store/usePcPosStore';
 
 export default function AdminProfile() {
   const { user } = useAuthStore();
+  const { isPcPosEnabled, setPcPosEnabled } = usePcPosStore();
   const { orders } = useOrderStore();
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
   const [isNewStaffModalOpen, setIsNewStaffModalOpen] = useState(false);
@@ -132,6 +134,13 @@ export default function AdminProfile() {
               وضعیت شیفت
             </Tabs.Trigger>
           )}
+
+          <Tabs.Trigger 
+            value="settings" 
+            className="px-6 py-3 font-semibold text-gray-500 hover:text-gray-700 data-[state=active]:text-[#0f3229] data-[state=active]:border-b-2 data-[state=active]:border-[#0f3229] transition-all bg-transparent !shadow-none outline-none"
+          >
+            تنظیمات سیستم
+          </Tabs.Trigger>
         </Tabs.List>
 
         <Tabs.Content value="personal" className="flex-1 outline-none data-[state=active]:animate-fadeIn">
@@ -357,6 +366,39 @@ export default function AdminProfile() {
             </div>
           </Tabs.Content>
         )}
+
+        <Tabs.Content value="settings" className="flex-1 outline-none data-[state=active]:animate-fadeIn flex flex-col">
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
+            <h2 className="text-xl font-bold text-gray-900 mb-6">تنظیمات سخت‌افزاری</h2>
+            
+            <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-200">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-sm text-[#0f3229]">
+                  <Monitor className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-gray-900">اتصال به دستگاه کارتخوان (PC-POS)</h3>
+                  <p className="text-sm text-gray-500 mt-1">
+                    در صورت فعال بودن، مبالغ سفارشات به صورت خودکار به دستگاه کارتخوان ارسال می‌شود.
+                  </p>
+                </div>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input 
+                  type="checkbox" 
+                  className="sr-only peer" 
+                  checked={isPcPosEnabled}
+                  onChange={(e) => {
+                    setPcPosEnabled(e.target.checked);
+                    toast.success(e.target.checked ? 'ارتباط با کارتخوان فعال شد' : 'ارتباط با کارتخوان غیرفعال شد');
+                  }}
+                />
+                <div className="w-14 h-7 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:right-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-[#0f3229]"></div>
+              </label>
+            </div>
+          </div>
+        </Tabs.Content>
+
       </Tabs.Root>
     </div>
   );
