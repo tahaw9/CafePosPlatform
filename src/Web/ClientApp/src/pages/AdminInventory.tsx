@@ -3,14 +3,16 @@ import { useMenuStore, MenuItem } from '../store/useMenuStore';
 import { getImageUrl } from '../lib/api';
 import * as Dialog from '@radix-ui/react-dialog';
 import * as AlertDialog from '@radix-ui/react-alert-dialog';
-import { Plus, Edit2, Trash2, Search, X } from 'lucide-react';
+import { Plus, Edit2, Trash2, Search, X, FolderKanban } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Dropdown from '../components/Admin/Dropdown';
+import CategoryManagementModal from '../components/Admin/CategoryManagementModal';
 
 export default function AdminInventory() {
   const { items, categories, fetchMenu, addItem, updateItem, deleteItem, toggleItemAvailability, isSubmitting, isLoading } = useMenuStore();
 
   const [searchQuery, setSearchQuery] = useState('');
+  const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
   const [deleteItemId, setDeleteItemId] = useState<string | null>(null);
@@ -169,8 +171,17 @@ export default function AdminInventory() {
             <Search className="w-4 h-4 text-gray-400 absolute right-3 top-1/2 -translate-y-1/2" />
           </div>
           <button
+            type="button"
+            onClick={() => setIsCategoryModalOpen(true)}
+            className="flex items-center gap-2 bg-white text-[#0f3229] border border-gray-200 px-4 py-2.5 rounded-xl font-bold hover:bg-gray-50 transition-colors whitespace-nowrap text-sm cursor-pointer shadow-xs"
+          >
+            <FolderKanban className="w-4 h-4 text-[#0f3229]" />
+            مدیریت دسته‌بندی‌ها
+          </button>
+          <button
+            type="button"
             onClick={openCreateModal}
-            className="flex items-center gap-2 bg-[#0f3229] text-[#d4af37] px-4 py-2.5 rounded-xl font-bold hover:bg-[#164237] transition-colors whitespace-nowrap text-sm"
+            className="flex items-center gap-2 bg-[#0f3229] text-[#d4af37] px-4 py-2.5 rounded-xl font-bold hover:bg-[#164237] transition-colors whitespace-nowrap text-sm cursor-pointer"
           >
             <Plus className="w-5 h-5" />
             افزودن محصول
@@ -389,6 +400,13 @@ export default function AdminInventory() {
           </AlertDialog.Content>
         </AlertDialog.Portal>
       </AlertDialog.Root>
+
+      {/* Category Management Modal */}
+      <CategoryManagementModal
+        isOpen={isCategoryModalOpen}
+        onClose={() => setIsCategoryModalOpen(false)}
+      />
     </div>
   );
 }
+

@@ -110,6 +110,7 @@ public class ApplicationDbContextInitialiser
                     Id = coffeeId,
                     Name = "قهوه",
                     Icon = "Coffee",
+                    DisplayOrder = 1,
                     Products = new List<Product>
                     {
                         new Product { Id = Guid.NewGuid(), Name = "اسپرسو", Price = 55000, ImageUrl = "/images/products/espresso.jpg", IsAvailable = true, Description = "یک شات اسپرسو خالص", CategoryId = coffeeId },
@@ -122,6 +123,7 @@ public class ApplicationDbContextInitialiser
                     Id = coldId,
                     Name = "نوشیدنی سرد",
                     Icon = "GlassWater",
+                    DisplayOrder = 2,
                     Products = new List<Product>
                     {
                         new Product { Id = Guid.NewGuid(), Name = "موخیتو", Price = 110000, ImageUrl = "/images/products/mojito.jpg", IsAvailable = true, Description = "ترکیب لیمو، نعناع و سودا", CategoryId = coldId },
@@ -133,6 +135,7 @@ public class ApplicationDbContextInitialiser
                     Id = pizzaId,
                     Name = "پیتزا",
                     Icon = "Pizza",
+                    DisplayOrder = 3,
                     Products = new List<Product>
                     {
                         new Product { Id = Guid.NewGuid(), Name = "پیتزا پپرونی", Price = 350000, ImageUrl = "/images/products/pepperoni.jpg", IsAvailable = true, Description = "پیتزا با پپرونی و پنیر فراوان", CategoryId = pizzaId },
@@ -144,6 +147,7 @@ public class ApplicationDbContextInitialiser
                     Id = fastfoodId,
                     Name = "فست فود",
                     Icon = "Sandwich",
+                    DisplayOrder = 4,
                     Products = new List<Product>
                     {
                         new Product { Id = Guid.NewGuid(), Name = "برگر کلاسیک", Price = 280000, ImageUrl = "/images/products/burger.jpg", IsAvailable = true, Description = "برگر گوشت با پنیر، کاهو و گوجه", CategoryId = fastfoodId }
@@ -154,6 +158,7 @@ public class ApplicationDbContextInitialiser
                     Id = pastryId,
                     Name = "شیرینی",
                     Icon = "Croissant",
+                    DisplayOrder = 5,
                     Products = new List<Product>
                     {
                         new Product { Id = Guid.NewGuid(), Name = "کروسان کره‌ای", Price = 75000, ImageUrl = "/images/products/croissant.jpg", IsAvailable = true, Description = "کروسان تازه و ترد", CategoryId = pastryId }

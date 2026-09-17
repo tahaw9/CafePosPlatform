@@ -27,5 +27,11 @@ public class OrderConfiguration : IEntityTypeConfiguration<Order>
         builder
         .HasIndex(o => o.Created)
         .IncludeProperties(o => o.OrderCode);
+
+        builder
+            .HasOne(o => o.Table)
+            .WithMany()
+            .HasForeignKey(o => o.TableId)
+            .OnDelete(DeleteBehavior.SetNull);
     }
 }

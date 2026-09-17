@@ -30,11 +30,8 @@ export interface ProductDto {
   categoryName: string | null;
 }
 
-export interface CategoryDto {
-  id: string;
-  name: string;
-  icon: string | null;
-}
+export type { CategoryDto } from './categoryService';
+export { getCategories } from './categoryService';
 
 export async function createProduct(data: CreateProductRequest): Promise<string> {
   const response = await api.post<string>('/Products', data);
@@ -45,11 +42,6 @@ export async function getProducts(filters?: { categoryId?: string; isAvailable?:
   const response = await api.get<ProductDto[]>('/Products', {
     params: filters
   });
-  return response.data;
-}
-
-export async function getCategories(): Promise<CategoryDto[]> {
-  const response = await api.get<CategoryDto[]>('/Categories');
   return response.data;
 }
 

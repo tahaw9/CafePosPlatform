@@ -18,4 +18,5 @@ public class Table : BaseEntity
     public string Name { get; set; } = string.Empty;
     public int TableNumber { get; set; }
     public TableStatus Status { get; set; }
+    public bool IsDeleted { get; set; } = false;
 }

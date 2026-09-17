@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { getOrders, createOrder, payOrder, updateOrderStatus, OrderDto, getOrderById, updateOrder } from '../lib/orderService';
-import { getTables, updateTableStatus } from '../lib/tableService';
+import { getTables, updateTableStatus, createTable as apiCreateTable, updateTable as apiUpdateTable, deleteTable as apiDeleteTable, CreateTableRequest, UpdateTableRequest } from '../lib/tableService';
 import toast from 'react-hot-toast';
 
 export type OrderStatus = 'pending' | 'preparing' | 'completed' | 'cancelled';
@@ -32,9 +32,10 @@ export interface Order {
 
 export type TableStatus = 'empty' | 'occupied' | 'waiter_called';
 
-interface Table {
+export interface Table {
   id: string;
   name: string;
+  tableNumber: number;
   status: TableStatus;
 }
 
@@ -49,6 +50,9 @@ interface OrderState {
   markAsPaid: (id: string, paymentMethod: PaymentMethod) => Promise<void>;
   applyDiscount: (id: string, discount: Order['discount']) => Promise<void>;
   updateTableStatus: (id: string, status: TableStatus) => Promise<void>;
+  createTable: (data: CreateTableRequest) => Promise<Table>;
+  updateTable: (id: string, data: UpdateTableRequest) => Promise<Table>;
+  deleteTable: (id: string) => Promise<void>;
   fetchInitialData: (silent?: boolean) => Promise<void>;
   fetchOrderById: (id: string) => Promise<Order | null>;
 }
@@ -92,8 +96,9 @@ export const useOrderStore = create<OrderState>((set, get) => ({
       const tables = backendTables.map(t => ({
         id: t.id,
         name: t.name,
+        tableNumber: t.tableNumber || 0,
         status: t.status as TableStatus
-      }));
+      })).sort((a, b) => a.tableNumber - b.tableNumber);
 
       const orders = backendOrders.map(mapBackendOrder);
 
@@ -245,6 +250,94 @@ export const useOrderStore = create<OrderState>((set, get) => ({
         || error?.response?.data?.detail
         || error?.message
         || 'خطا در بروزرسانی وضعیت میز';
+      toast.error(message);
+      throw error;
+    } finally {
+      set({ isSubmitting: false });
+    }
+  },
+
+  createTable: async (data) => {
+    if (get().isSubmitting) throw new Error('عملیات در حال انجام است');
+    set({ isSubmitting: true });
+
+    try {
+      const newTableDto = await apiCreateTable(data);
+      const newTable: Table = {
+        id: newTableDto.id,
+        name: newTableDto.name,
+        tableNumber: newTableDto.tableNumber,
+        status: newTableDto.status as TableStatus
+      };
+
+      set((state) => ({
+        tables: [...state.tables, newTable].sort((a, b) => a.tableNumber - b.tableNumber)
+      }));
+
+      toast.success(`${newTable.name} با موفقیت افزوده شد`);
+      return newTable;
+    } catch (error: any) {
+      const message = error?.response?.data?.detail
+        || error?.response?.data?.title
+        || error?.message
+        || 'خطا در افزودن میز';
+      toast.error(message);
+      throw error;
+    } finally {
+      set({ isSubmitting: false });
+    }
+  },
+
+  updateTable: async (id, data) => {
+    if (get().isSubmitting) throw new Error('عملیات در حال انجام است');
+    set({ isSubmitting: true });
+
+    try {
+      const updatedDto = await apiUpdateTable(id, data);
+      const updatedTable: Table = {
+        id: updatedDto.id,
+        name: updatedDto.name,
+        tableNumber: updatedDto.tableNumber,
+        status: updatedDto.status as TableStatus
+      };
+
+      set((state) => ({
+        tables: state.tables
+          .map(t => t.id === id ? updatedTable : t)
+          .sort((a, b) => a.tableNumber - b.tableNumber)
+      }));
+
+      toast.success('اطلاعات میز با موفقیت بروزرسانی شد');
+      return updatedTable;
+    } catch (error: any) {
+      const message = error?.response?.data?.detail
+        || error?.response?.data?.title
+        || error?.message
+        || 'خطا در ویرایش میز';
+      toast.error(message);
+      throw error;
+    } finally {
+      set({ isSubmitting: false });
+    }
+  },
+
+  deleteTable: async (id) => {
+    if (get().isSubmitting) return;
+    set({ isSubmitting: true });
+
+    try {
+      await apiDeleteTable(id);
+
+      set((state) => ({
+        tables: state.tables.filter(t => t.id !== id)
+      }));
+
+      toast.success('میز با موفقیت حذف شد');
+    } catch (error: any) {
+      const message = error?.response?.data?.detail
+        || error?.response?.data?.title
+        || error?.message
+        || 'خطا در حذف میز';
       toast.error(message);
       throw error;
     } finally {

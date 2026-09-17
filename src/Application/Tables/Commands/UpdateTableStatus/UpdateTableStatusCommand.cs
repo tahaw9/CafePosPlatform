@@ -1,4 +1,6 @@
 using CafePosBackend.Application.Common.Interfaces;
+using CafePosBackend.Application.Common.Security;
+using CafePosBackend.Domain.Constants;
 using CafePosBackend.Domain.Entities;
 using MediatR;
 using FluentValidation;
@@ -8,6 +10,7 @@ using CafePosBackend.Application.Tables.Queries.GetTables;
 
 namespace CafePosBackend.Application.Tables.Commands.UpdateTableStatus;
 
+[Authorize(Roles = $"{Roles.Administrator},{Roles.Barista}")]
 public record UpdateTableStatusCommand : IRequest<TableDto>
 {
     public Guid Id { get; init; }

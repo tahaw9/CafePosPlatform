@@ -2,11 +2,17 @@ import { create } from 'zustand';
 import { 
   createProduct, 
   getProducts, 
-  getCategories, 
   updateProduct, 
   changeProductAvailability, 
   deleteProduct 
 } from '../lib/productService';
+import {
+  getCategories,
+  createCategory as apiCreateCategory,
+  updateCategory as apiUpdateCategory,
+  deleteCategory as apiDeleteCategory,
+  CategoryDto
+} from '../lib/categoryService';
 import toast from 'react-hot-toast';
 
 export interface MenuItem {
@@ -19,9 +25,17 @@ export interface MenuItem {
   description?: string;
 }
 
+export interface MenuCategory {
+  id: string;
+  name: string;
+  icon: string;
+  displayOrder: number;
+  itemCount: number;
+}
+
 interface MenuState {
   items: MenuItem[];
-  categories: { id: string; name: string; icon: string }[];
+  categories: MenuCategory[];
   isSubmitting: boolean;
   isLoading: boolean;
   fetchMenu: () => Promise<void>;
@@ -29,6 +43,9 @@ interface MenuState {
   updateItem: (id: string, item: Partial<Omit<MenuItem, 'id'>> & { base64Image?: string }) => Promise<void>;
   deleteItem: (id: string) => Promise<void>;
   toggleItemAvailability: (id: string) => Promise<void>;
+  createCategory: (data: { name: string; icon?: string; displayOrder?: number }) => Promise<void>;
+  updateCategory: (id: string, data: { name: string; icon?: string; displayOrder: number }) => Promise<void>;
+  deleteCategory: (id: string) => Promise<void>;
 }
 
 export const useMenuStore = create<MenuState>((set, get) => ({
@@ -45,11 +62,15 @@ export const useMenuStore = create<MenuState>((set, get) => ({
         getProducts()
       ]);
 
-      const categories = backendCategories.map(c => ({
-        id: c.id,
-        name: c.name,
-        icon: c.icon || 'Coffee'
-      }));
+      const categories: MenuCategory[] = backendCategories
+        .map((c: CategoryDto) => ({
+          id: c.id,
+          name: c.name,
+          icon: c.icon || 'Coffee',
+          displayOrder: c.displayOrder ?? 0,
+          itemCount: c.itemCount ?? 0
+        }))
+        .sort((a, b) => a.displayOrder - b.displayOrder || a.name.localeCompare(b.name));
 
       const items = backendProducts.map(p => ({
         id: p.id,
@@ -63,8 +84,8 @@ export const useMenuStore = create<MenuState>((set, get) => ({
 
       set({ categories, items });
     } catch (error: any) {
-      const message = error?.response?.data?.title
-        || error?.response?.data?.detail
+      const message = error?.response?.data?.detail
+        || error?.response?.data?.title
         || error?.message
         || 'خطا در دریافت اطلاعات منو';
       toast.error(message);
@@ -89,10 +110,13 @@ export const useMenuStore = create<MenuState>((set, get) => ({
 
       set((state) => ({
         items: [...state.items, { ...item, id: newId, image: item.base64Image || '' }],
+        categories: state.categories.map((c) =>
+          c.id === item.category ? { ...c, itemCount: c.itemCount + 1 } : c
+        )
       }));
     } catch (error: any) {
-      const message = error?.response?.data?.title
-        || error?.response?.data?.detail
+      const message = error?.response?.data?.detail
+        || error?.response?.data?.title
         || error?.message
         || 'خطا در افزودن محصول';
       toast.error(message);
@@ -122,12 +146,24 @@ export const useMenuStore = create<MenuState>((set, get) => ({
 
       await updateProduct(payload);
 
-      set((state) => ({
-        items: state.items.map((i) => (i.id === id ? { ...i, ...item, image: item.base64Image || i.image } : i))
-      }));
+      set((state) => {
+        let updatedCategories = state.categories;
+        if (item.category && item.category !== original.category) {
+          updatedCategories = updatedCategories.map((c) => {
+            if (c.id === original.category) return { ...c, itemCount: Math.max(0, c.itemCount - 1) };
+            if (c.id === item.category) return { ...c, itemCount: c.itemCount + 1 };
+            return c;
+          });
+        }
+
+        return {
+          items: state.items.map((i) => (i.id === id ? { ...i, ...item, image: item.base64Image || i.image } : i)),
+          categories: updatedCategories
+        };
+      });
     } catch (error: any) {
-      const message = error?.response?.data?.title
-        || error?.response?.data?.detail
+      const message = error?.response?.data?.detail
+        || error?.response?.data?.title
         || error?.message
         || 'خطا در ویرایش محصول';
       toast.error(message);
@@ -142,14 +178,20 @@ export const useMenuStore = create<MenuState>((set, get) => ({
     set({ isSubmitting: true });
 
     try {
+      const original = get().items.find(i => i.id === id);
       await deleteProduct(id);
 
       set((state) => ({
-        items: state.items.filter((i) => i.id !== id)
+        items: state.items.filter((i) => i.id !== id),
+        categories: original
+          ? state.categories.map((c) =>
+              c.id === original.category ? { ...c, itemCount: Math.max(0, c.itemCount - 1) } : c
+            )
+          : state.categories
       }));
     } catch (error: any) {
-      const message = error?.response?.data?.title
-        || error?.response?.data?.detail
+      const message = error?.response?.data?.detail
+        || error?.response?.data?.title
         || error?.message
         || 'خطا در حذف محصول';
       toast.error(message);
@@ -169,12 +211,98 @@ export const useMenuStore = create<MenuState>((set, get) => ({
         ),
       }));
     } catch (error: any) {
-      const message = error?.response?.data?.title
-        || error?.response?.data?.detail
+      const message = error?.response?.data?.detail
+        || error?.response?.data?.title
         || error?.message
         || 'خطا در تغییر وضعیت موجودی محصول';
       toast.error(message);
       throw error;
+    }
+  },
+
+  createCategory: async (data) => {
+    if (get().isSubmitting) return;
+    set({ isSubmitting: true });
+
+    try {
+      const created = await apiCreateCategory(data);
+      const newCategory: MenuCategory = {
+        id: created.id,
+        name: created.name,
+        icon: created.icon || 'Coffee',
+        displayOrder: created.displayOrder ?? 0,
+        itemCount: 0
+      };
+
+      set((state) => ({
+        categories: [...state.categories, newCategory].sort(
+          (a, b) => a.displayOrder - b.displayOrder || a.name.localeCompare(b.name)
+        )
+      }));
+    } catch (error: any) {
+      const message = error?.response?.data?.detail
+        || error?.response?.data?.title
+        || error?.message
+        || 'خطا در افزودن دسته‌بندی';
+      toast.error(message);
+      throw error;
+    } finally {
+      set({ isSubmitting: false });
+    }
+  },
+
+  updateCategory: async (id, data) => {
+    if (get().isSubmitting) return;
+    set({ isSubmitting: true });
+
+    try {
+      const updated = await apiUpdateCategory(id, data);
+
+      set((state) => ({
+        categories: state.categories
+          .map((c) =>
+            c.id === id
+              ? {
+                  ...c,
+                  name: updated.name,
+                  icon: updated.icon || c.icon,
+                  displayOrder: updated.displayOrder
+                }
+              : c
+          )
+          .sort((a, b) => a.displayOrder - b.displayOrder || a.name.localeCompare(b.name))
+      }));
+    } catch (error: any) {
+      const message = error?.response?.data?.detail
+        || error?.response?.data?.title
+        || error?.message
+        || 'خطا در ویرایش دسته‌بندی';
+      toast.error(message);
+      throw error;
+    } finally {
+      set({ isSubmitting: false });
+    }
+  },
+
+  deleteCategory: async (id) => {
+    if (get().isSubmitting) return;
+    set({ isSubmitting: true });
+
+    try {
+      await apiDeleteCategory(id);
+
+      set((state) => ({
+        categories: state.categories.filter((c) => c.id !== id)
+      }));
+    } catch (error: any) {
+      const message = error?.response?.data?.detail
+        || error?.response?.data?.title
+        || error?.message
+        || 'خطا در حذف دسته‌بندی';
+      toast.error(message);
+      throw error;
+    } finally {
+      set({ isSubmitting: false });
     }
   },
 }));

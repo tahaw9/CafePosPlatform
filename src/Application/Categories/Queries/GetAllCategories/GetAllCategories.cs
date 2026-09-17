@@ -28,6 +28,8 @@ public class GetAllCategoriesQueryHandler : IRequestHandler<GetAllCategoriesQuer
     public async Task<IEnumerable<CategoryDto>> Handle(GetAllCategoriesQuery request, CancellationToken cancellationToken)
     {
         var categories = await _context.Categories
+            .OrderBy(c => c.DisplayOrder)
+            .ThenBy(c => c.Name)
             .ProjectTo<CategoryDto>(_mapper.ConfigurationProvider)
             .ToListAsync(cancellationToken);
         return categories;

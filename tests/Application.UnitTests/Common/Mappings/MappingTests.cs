@@ -1,6 +1,8 @@
 using System.Runtime.CompilerServices;
 using AutoMapper;
+using CafePosBackend.Application.Categories;
 using CafePosBackend.Application.Common.Interfaces;
+using CafePosBackend.Application.Tables.Queries.GetTables;
 using CafePosBackend.Application.TodoLists.Queries.GetTodos;
 using CafePosBackend.Domain.Entities;
 using Microsoft.Extensions.Logging;
@@ -36,6 +38,8 @@ public class MappingTests
     [Test]
     [TestCase(typeof(TodoList), typeof(TodoListDto))]
     [TestCase(typeof(TodoItem), typeof(TodoItemDto))]
+    [TestCase(typeof(Table), typeof(TableDto))]
+    [TestCase(typeof(Category), typeof(CategoryDto))]
     public void ShouldSupportMappingFromSourceToDestination(Type source, Type destination)
     {
         var instance = GetInstanceOf(source);
