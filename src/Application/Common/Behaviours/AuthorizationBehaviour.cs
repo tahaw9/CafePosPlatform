@@ -1,4 +1,4 @@
-﻿using System.Reflection;
+using System.Reflection;
 using CafePosBackend.Application.Common.Exceptions;
 using CafePosBackend.Application.Common.Interfaces;
 using CafePosBackend.Application.Common.Security;
@@ -38,11 +38,11 @@ public class AuthorizationBehaviour<TRequest, TResponse> : IPipelineBehavior<TRe
             {
                 var authorized = false;
 
-                foreach (var roles in authorizeAttributesWithRoles.Select(a => a.Roles.Split(',')))
+                foreach (var roles in authorizeAttributesWithRoles.Select(a => a.Roles.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)))
                 {
                     foreach (var role in roles)
                     {
-                        var isInRole = _user.Roles?.Any(x => role == x)??false;
+                        var isInRole = _user.Roles?.Any(x => string.Equals(x?.Trim(), role, StringComparison.OrdinalIgnoreCase)) ?? false;
                         if (isInRole)
                         {
                             authorized = true;

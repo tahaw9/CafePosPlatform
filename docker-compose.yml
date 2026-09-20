@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   database:
-    image: postgres:18.3
+    image: postgres:18.6
     environment:
       - POSTGRES_DB=CafePosDb
       - POSTGRES_USER=postgres
@@ -21,12 +21,17 @@ services:
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
       - RUN_MIGRATIONS=true
-      - ConnectionStrings__CafePosBackendDb=Host=database;Port=5433;Database=CafePosDb;Username=postgres;Password=2580782580
+      - ConnectionStrings__CafePosBackendDb=Host=database;Port=5432;Database=CafePosDb;Username=postgres;Password=2580782580
     ports:
-      - "8080:8080"
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - dp-keys:/home/app/.aspnet/DataProtection-Keys
+      - product-images:/app/wwwroot/images
     depends_on:
       - database
     restart: unless-stopped
 
 volumes:
   db-data:
+  dp-keys:
+  product-images:

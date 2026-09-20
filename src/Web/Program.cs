@@ -1,5 +1,6 @@
 using CafePosBackend.Infrastructure.Data;
 using CafePosBackend.Web.Hubs;
+using Microsoft.AspNetCore.HttpOverrides;
 using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -13,6 +14,15 @@ builder.AddInfrastructureServices();
 builder.AddWebServices();
 
 var app = builder.Build();
+
+// Process forwarded headers from reverse proxies (e.g. Nginx terminating SSL)
+var forwardedHeadersOptions = new ForwardedHeadersOptions
+{
+    ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto | ForwardedHeaders.XForwardedHost
+};
+forwardedHeadersOptions.KnownIPNetworks.Clear();
+forwardedHeadersOptions.KnownProxies.Clear();
+app.UseForwardedHeaders(forwardedHeadersOptions);
 
 // Configure the HTTP request pipeline.
 // Always run migrations on startup (useful for containerized deployments)

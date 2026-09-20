@@ -3,6 +3,8 @@ using CafePosBackend.Infrastructure.Data;
 using CafePosBackend.Infrastructure.Data.Interceptors;
 using CafePosBackend.Infrastructure.Identity;
 using CafePosBackend.Infrastructure.Services;
+using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
@@ -34,13 +36,14 @@ public static class DependencyInjection
 
         builder.Services.AddScoped<ApplicationDbContextInitialiser>();
 
-        //builder.Services.AddAuthentication(options =>
-        //    {
-        //        options.DefaultScheme = IdentityConstants.ApplicationScheme;
-        //        options.DefaultSignInScheme = IdentityConstants.ExternalScheme;
-        //    })
-        //    .AddBearerToken(IdentityConstants.BearerScheme)
-        //    .AddIdentityCookies();
+        var keysFolder = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+            ".aspnet",
+            "DataProtection-Keys");
+
+        builder.Services.AddDataProtection()
+            .SetApplicationName("CafePosBackend")
+            .PersistKeysToFileSystem(new DirectoryInfo(keysFolder));
 
         builder.Services.AddAuthentication(options =>
         {
@@ -65,11 +68,21 @@ public static class DependencyInjection
                     return IdentityConstants.BearerScheme;
                 }
 
+                // All API endpoints (/api/...) should default to BearerScheme so unauthenticated requests
+                // return 401 Unauthorized rather than issuing a 302 redirect to /Account/Login
+                if (context.Request.Path.StartsWithSegments("/api") || context.Request.Path.StartsWithSegments("/hubs"))
+                {
+                    return IdentityConstants.BearerScheme;
+                }
+
                 return IdentityConstants.ApplicationScheme;
             };
         })
         .AddBearerToken(IdentityConstants.BearerScheme, options =>
         {
+            // Extend token expiration to 14 days so staff sessions do not expire mid-shift
+            options.BearerTokenExpiration = TimeSpan.FromDays(14);
+            options.RefreshTokenExpiration = TimeSpan.FromDays(30);
             options.Events = new()
             {
                 OnMessageReceived = context =>
@@ -89,6 +102,21 @@ public static class DependencyInjection
             };
         })
         .AddIdentityCookies();
+
+        // Ensure Cookie authentication never issues a 302 redirect for API/AJAX requests
+        builder.Services.ConfigureApplicationCookie(options =>
+        {
+            options.Events.OnRedirectToLogin = context =>
+            {
+                context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                return Task.CompletedTask;
+            };
+            options.Events.OnRedirectToAccessDenied = context =>
+            {
+                context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                return Task.CompletedTask;
+            };
+        });
 
 
         builder.Services.AddAuthorizationBuilder()

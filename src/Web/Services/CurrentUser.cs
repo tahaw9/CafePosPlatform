@@ -1,4 +1,4 @@
-﻿using System.Security.Claims;
+using System.Security.Claims;
 
 using CafePosBackend.Application.Common.Interfaces;
 
@@ -17,7 +17,12 @@ public class CurrentUser : IUser
     {
         get
         {
-            var userIdString = _httpContextAccessor.HttpContext?.User?.FindFirstValue(ClaimTypes.NameIdentifier);
+            var user = _httpContextAccessor.HttpContext?.User;
+            if (user == null) return null;
+
+            var userIdString = user.FindFirstValue(ClaimTypes.NameIdentifier)
+                ?? user.FindFirstValue("sub")
+                ?? user.FindFirstValue("nameid");
 
             if (Guid.TryParse(userIdString, out var parsedId))
             {
@@ -27,6 +32,13 @@ public class CurrentUser : IUser
             return null;
         }
     }
-    public List<string>? Roles => _httpContextAccessor.HttpContext?.User?.FindAll(ClaimTypes.Role).Select(x => x.Value).ToList();
+
+    public List<string>? Roles => _httpContextAccessor.HttpContext?.User?.Claims
+        .Where(c => c.Type == ClaimTypes.Role || 
+                    c.Type.Equals("role", StringComparison.OrdinalIgnoreCase) || 
+                    c.Type.Equals("roles", StringComparison.OrdinalIgnoreCase))
+        .Select(x => x.Value)
+        .Where(v => !string.IsNullOrWhiteSpace(v))
+        .ToList();
 
 }

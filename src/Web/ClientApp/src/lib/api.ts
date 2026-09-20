@@ -58,13 +58,21 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    // Check if the response is 401 Unauthorized
-    if (error.response && error.response.status === 401) {
-      // Clear token and user data from the store and localStorage
-      useAuthStore.getState().logout();
-
-      // Optionally redirect to login, but handling this through reactivity in App.tsx or ProtectedRoute is usually better.
-      window.location.href = '/admin/login';
+    // Under no circumstances should error responses forcefully navigate away to /admin/login.
+    // The error is rejected cleanly so the calling component/modal/store handles and displays the error in-place
+    // (via inline alerts, form validation messages, or toast notifications) without losing user input.
+    if (error.response) {
+      if (error.response.status === 401 && !error.response.data?.detail && !error.response.data?.title) {
+        error.response.data = {
+          title: 'عدم احراز هویت',
+          detail: 'نشست کاربری شما نامعتبر یا منقضی شده است. لطفاً مجدداً وارد شوید.'
+        };
+      } else if (error.response.status === 403 && !error.response.data?.detail && !error.response.data?.title) {
+        error.response.data = {
+          title: 'عدم دسترسی',
+          detail: 'شما مجوز لازم برای انجام این عملیات را ندارید.'
+        };
+      }
     }
     return Promise.reject(error);
   }

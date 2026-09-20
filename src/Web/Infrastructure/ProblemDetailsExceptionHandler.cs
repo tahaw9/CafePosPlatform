@@ -31,13 +31,15 @@ public class ProblemDetailsExceptionHandler : IExceptionHandler
             UnauthorizedAccessException => (StatusCodes.Status401Unauthorized, new ProblemDetails
             {
                 Status = StatusCodes.Status401Unauthorized,
-                Title = "Unauthorized",
+                Title = "عدم احراز هویت",
+                Detail = "نشست کاربری شما نامعتبر یا منقضی شده است. لطفاً مجدداً وارد شوید.",
                 Type = "https://tools.ietf.org/html/rfc9110#section-15.5.2"
             }),
             ForbiddenAccessException => (StatusCodes.Status403Forbidden, new ProblemDetails
             {
                 Status = StatusCodes.Status403Forbidden,
-                Title = "Forbidden",
+                Title = "عدم دسترسی",
+                Detail = "شما مجوز لازم برای انجام این عملیات را ندارید.",
                 Type = "https://tools.ietf.org/html/rfc9110#section-15.5.4"
             }),
             ConflictException ce => (StatusCodes.Status409Conflict, new ProblemDetails
