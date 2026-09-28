@@ -2,7 +2,9 @@ import api from './api';
 
 export interface OrderItemRequest {
   productId: string;
+  productVariantId?: string | null;
   productName: string;
+  variantName?: string | null;
   unitPrice: number;
   quantity: number;
   note?: string;
@@ -27,7 +29,9 @@ export interface OrderDiscountDto {
 export interface OrderItemDto {
   id: string;
   productId: string;
+  productVariantId?: string | null;
   productName: string;
+  variantName?: string | null;
   unitPrice: number;
   quantity: number;
   note?: string;

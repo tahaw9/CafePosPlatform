@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { useMenuStore, MenuItem } from '../store/useMenuStore';
+import { useMenuStore, MenuItem, ProductVariant } from '../store/useMenuStore';
 import { useOrderStore, OrderItem, PaymentMethod, OrderStatus } from '../store/useOrderStore';
 import { getImageUrl } from '../lib/api';
-import { Minus, Plus, Trash2, Printer } from 'lucide-react';
+import { Minus, Plus, Trash2, Printer, Layers, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import ThermalReceipt from '../components/Admin/ThermalReceipt';
 import { printReceiptViaIframe } from '../lib/printUtils';
@@ -30,6 +30,7 @@ export default function AdminPOS() {
   const [discountValue, setDiscountValue] = useState<string>('');
 
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [variantModalProduct, setVariantModalProduct] = useState<MenuItem | null>(null);
 
   const handleOpenPreview = () => {
     if (cart.length === 0) return;
@@ -110,16 +111,51 @@ export default function AdminPOS() {
     }
   }, [location.search, fetchOrderById]);
 
-  const addToCart = (product: any) => {
+  const addToCart = (product: MenuItem, variant?: ProductVariant) => {
+    const variantId = variant?.id;
+    const variantName = variant?.name;
+    const price = variant ? variant.price : product.price;
+    const cartItemId = `${product.id}_${variantId || 'default'}`;
+
     setCart(prev => {
-      const existing = prev.find(item => item.productId === product.id);
+      const existing = prev.find(item => 
+        item.productId === product.id && 
+        (item.productVariantId || null) === (variantId || null)
+      );
       if (existing) {
         return prev.map(item => 
-          item.productId === product.id ? { ...item, quantity: item.quantity + 1 } : item
+          item.id === existing.id ? { ...item, quantity: item.quantity + 1 } : item
         );
       }
-      return [...prev, { id: Math.random().toString(36).substr(2, 9), productId: product.id, name: product.name, price: product.price, quantity: 1 }];
+      return [
+        ...prev, 
+        { 
+          id: cartItemId, 
+          productId: product.id, 
+          productVariantId: variantId,
+          variantName: variantName,
+          name: product.name, 
+          price: price, 
+          quantity: 1 
+        }
+      ];
     });
+  };
+
+  const handleProductClick = (item: MenuItem) => {
+    if (!item.isAvailable) return;
+
+    const hasVariants = Boolean(item.variants && item.variants.length > 0);
+    if (hasVariants) {
+      const availableVariants = item.variants!.filter(v => v.isAvailable);
+      if (availableVariants.length === 0) {
+        toast.error('هیچ‌کدام از انواع این محصول در حال حاضر موجود نیست');
+        return;
+      }
+      setVariantModalProduct(item);
+    } else {
+      addToCart(item);
+    }
   };
 
   const updateQuantity = (id: string, delta: number) => {
@@ -146,6 +182,15 @@ export default function AdminPOS() {
     if (cart.length === 0) {
       toast.error('سبد خرید خالی است');
       return;
+    }
+
+    // Pre-dispatch validation: Ensure all variant-driven products have an explicit productVariantId
+    for (const cartItem of cart) {
+      const catalogItem = items.find(i => i.id === cartItem.productId);
+      if (catalogItem && catalogItem.variants && catalogItem.variants.length > 0 && !cartItem.productVariantId) {
+        toast.error(`لطفاً نوع مشخص شده برای «${cartItem.name}» را تعیین کنید`);
+        return;
+      }
     }
 
     const { isPcPosEnabled, triggerPayment, reset } = usePcPosStore.getState();
@@ -255,21 +300,51 @@ export default function AdminPOS() {
         {/* Products Grid */}
         <div className="flex-1 p-4 overflow-y-auto custom-scrollbar">
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-            {items.filter(i => i.category === activeCategory).map(item => (
-              <div 
-                key={item.id}
-                onClick={() => item.isAvailable ? addToCart(item) : undefined}
-                className={`bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden cursor-pointer transition-transform hover:scale-[1.02] active:scale-[0.98] ${!item.isAvailable ? 'opacity-50 grayscale cursor-not-allowed' : ''}`}
-              >
-                <div className="h-24 w-full bg-gray-200">
-                  <img src={getImageUrl(item.image)} alt={item.name} className="w-full h-full object-cover" />
+            {items.filter(i => i.category === activeCategory).map(item => {
+              const hasVariants = Boolean(item.variants && item.variants.length > 0);
+              const availableVariants = hasVariants ? item.variants!.filter(v => v.isAvailable) : [];
+              const isAvailable = hasVariants 
+                ? (item.isAvailable && availableVariants.length > 0)
+                : item.isAvailable;
+              const displayPrice = hasVariants
+                ? (availableVariants.length > 0 
+                    ? Math.min(...availableVariants.map(v => v.price))
+                    : (item.startingPrice || item.price))
+                : item.price;
+
+              return (
+                <div 
+                  key={item.id}
+                  onClick={() => isAvailable && handleProductClick(item)}
+                  className={`relative bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden cursor-pointer transition-transform hover:scale-[1.02] active:scale-[0.98] ${!isAvailable ? 'opacity-50 grayscale cursor-not-allowed' : ''}`}
+                >
+                  <div className="relative h-24 w-full bg-gray-200">
+                    <img src={getImageUrl(item.image)} alt={item.name} className="w-full h-full object-cover" />
+                    {hasVariants && isAvailable && (
+                      <div className="absolute top-1.5 right-1.5 bg-[#0a221b]/80 backdrop-blur-sm text-emerald-200 px-2 py-0.5 rounded-full text-[10px] font-bold flex items-center gap-1 border border-emerald-400/30">
+                        <Layers size={11} className="text-emerald-300" />
+                        <span>دارای تنوع</span>
+                      </div>
+                    )}
+                    {!isAvailable && (
+                      <div className="absolute inset-0 bg-black/50 flex items-center justify-center backdrop-blur-[1px]">
+                        <span className="bg-red-500 text-white px-2 py-0.5 rounded-full text-[11px] font-bold">
+                          ناموجود
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                  <div className="p-3">
+                    <div className="font-bold text-sm mb-1 line-clamp-1">{item.name}</div>
+                    <div className="text-[#0f3229] font-bold text-xs flex items-center gap-1">
+                      {hasVariants && <span className="text-[10px] font-normal text-gray-500">از</span>}
+                      <span>{displayPrice.toLocaleString()}</span>
+                      <span className="text-[10px] font-normal text-gray-500">تومان</span>
+                    </div>
+                  </div>
                 </div>
-                <div className="p-3">
-                  <div className="font-bold text-sm mb-1 line-clamp-1">{item.name}</div>
-                  <div className="text-[#d4af37] font-medium text-xs">{item.price.toLocaleString()} تومان</div>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </div>
@@ -307,21 +382,28 @@ export default function AdminPOS() {
 
         <div className="flex-1 overflow-y-auto p-4 custom-scrollbar space-y-3">
           {cart.map(item => (
-            <div key={item.id} className="flex flex-col gap-2 p-3 bg-gray-50 rounded-xl">
+            <div key={item.id} className="flex flex-col gap-2 p-3 bg-gray-50 rounded-xl border border-gray-100">
               <div className="flex justify-between items-start">
-                <span className="font-medium">{item.name}</span>
-                <button onClick={() => removeFromCart(item.id)} className="text-red-500 hover:bg-red-100 p-1 rounded">
+                <div className="flex flex-col">
+                  <span className="font-bold text-gray-900 text-sm">{item.name}</span>
+                  {item.variantName && (
+                    <span className="inline-block mt-0.5 text-[11px] font-medium text-emerald-800 bg-emerald-100/80 px-2 py-0.5 rounded-md border border-emerald-200/50 self-start">
+                      {item.variantName}
+                    </span>
+                  )}
+                </div>
+                <button onClick={() => removeFromCart(item.id)} className="text-red-500 hover:bg-red-100 p-1 rounded transition-colors">
                   <Trash2 size={16} />
                 </button>
               </div>
               <div className="flex justify-between items-center text-sm">
-                <span className="text-gray-500">{(item.price * item.quantity).toLocaleString()} تومان</span>
-                <div className="flex items-center gap-2 bg-white rounded-lg border">
-                  <button onClick={() => updateQuantity(item.id, 1)} className="p-1 hover:bg-gray-100 rounded">
+                <span className="text-gray-600 font-semibold">{(item.price * item.quantity).toLocaleString()} تومان</span>
+                <div className="flex items-center gap-2 bg-white rounded-lg border shadow-sm">
+                  <button onClick={() => updateQuantity(item.id, 1)} className="p-1 hover:bg-gray-100 rounded transition-colors">
                     <Plus size={16} />
                   </button>
-                  <span className="w-4 text-center font-bold">{item.quantity}</span>
-                  <button onClick={() => updateQuantity(item.id, -1)} className="p-1 hover:bg-gray-100 rounded">
+                  <span className="w-4 text-center font-bold text-gray-800">{item.quantity}</span>
+                  <button onClick={() => updateQuantity(item.id, -1)} className="p-1 hover:bg-gray-100 rounded transition-colors">
                     <Minus size={16} />
                   </button>
                 </div>
@@ -464,6 +546,91 @@ export default function AdminPOS() {
               </button>
               <Dialog.Close asChild>
                 <button className="flex-1 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-lg font-medium transition-colors">
+                  انصراف
+                </button>
+              </Dialog.Close>
+            </div>
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
+
+      {/* Fast Variant Selection Modal for Cashier */}
+      <Dialog.Root open={Boolean(variantModalProduct)} onOpenChange={(open) => !open && setVariantModalProduct(null)}>
+        <Dialog.Portal>
+          <Dialog.Overlay className="fixed inset-0 bg-black/60 z-[100] backdrop-blur-sm dialog-overlay print:hidden" />
+          <Dialog.Content 
+            className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white rounded-2xl shadow-2xl w-[90vw] max-w-md max-h-[85vh] overflow-hidden z-[101] dialog-content flex flex-col print:hidden"
+            dir="rtl"
+          >
+            {/* Modal Header */}
+            <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-[#0a221b] text-white">
+              <div className="flex items-center gap-3">
+                {variantModalProduct?.image && (
+                  <img 
+                    src={getImageUrl(variantModalProduct.image)} 
+                    alt={variantModalProduct.name} 
+                    className="w-12 h-12 rounded-xl object-cover border border-white/20 shadow-sm"
+                  />
+                )}
+                <div>
+                  <Dialog.Title className="font-bold text-base text-white">
+                    {variantModalProduct?.name}
+                  </Dialog.Title>
+                  <div className="text-xs text-emerald-300 mt-0.5">
+                    انتخاب نوع / سایز
+                  </div>
+                </div>
+              </div>
+              <Dialog.Close asChild>
+                <button className="text-gray-300 hover:text-white p-1.5 rounded-lg hover:bg-white/10 transition-colors">
+                  <X size={20} />
+                </button>
+              </Dialog.Close>
+            </div>
+
+            {/* Variant Options List - Touch targets min height >= 48px */}
+            <div className="p-4 overflow-y-auto custom-scrollbar flex-1 space-y-2.5 bg-gray-50">
+              {variantModalProduct?.variants?.map((variant) => {
+                const isAvail = variant.isAvailable;
+                return (
+                  <button
+                    key={variant.id}
+                    type="button"
+                    disabled={!isAvail}
+                    onClick={() => {
+                      if (variantModalProduct && isAvail) {
+                        addToCart(variantModalProduct, variant);
+                        setVariantModalProduct(null);
+                      }
+                    }}
+                    className={`w-full min-h-[52px] p-3 rounded-xl border text-start flex items-center justify-between transition-all select-none ${
+                      !isAvail
+                        ? 'opacity-40 bg-gray-100 border-gray-200 cursor-not-allowed text-gray-400'
+                        : 'bg-white border-gray-200 hover:border-[#0f3229] hover:bg-emerald-50/50 active:scale-[0.98] shadow-sm'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className={`font-bold text-sm ${isAvail ? 'text-gray-900' : 'text-gray-400'}`}>
+                        {variant.name}
+                      </span>
+                      {!isAvail && (
+                        <span className="text-[11px] bg-red-100 text-red-600 px-2 py-0.5 rounded-md font-medium">
+                          ناموجود
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-left font-bold text-sm text-[#0f3229]">
+                      {variant.price.toLocaleString()} <span className="text-xs font-normal text-gray-500">تومان</span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-3 border-t border-gray-100 bg-white flex justify-end">
+              <Dialog.Close asChild>
+                <button className="px-5 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-medium text-sm transition-colors">
                   انصراف
                 </button>
               </Dialog.Close>

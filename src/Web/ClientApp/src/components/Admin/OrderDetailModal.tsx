@@ -41,10 +41,19 @@ export default function OrderDetailModal({ order, onClose }: OrderDetailModalPro
               {order.items.map(item => (
                 <div key={item.id} className="bg-gray-50 rounded-xl p-4 border border-gray-200">
                   <div className="flex justify-between items-start mb-2">
-                    <span className="font-bold text-gray-800 text-lg">
-                      {item.name}
-                      <span className="text-sm text-gray-500 bg-gray-200 px-2 py-0.5 rounded-full me-2">{item.quantity} عدد</span>
-                    </span>
+                    <div>
+                      <span className="font-bold text-gray-800 text-lg">
+                        {item.name}
+                        <span className="text-sm text-gray-500 bg-gray-200 px-2 py-0.5 rounded-full me-2">{item.quantity} عدد</span>
+                      </span>
+                      {item.variantName && (
+                        <div className="mt-1">
+                          <span className="inline-flex items-center text-xs font-semibold text-[#0f3229] bg-[#0f3229]/10 px-2.5 py-0.5 rounded-full border border-[#0f3229]/20">
+                            نوع: {item.variantName}
+                          </span>
+                        </div>
+                      )}
+                    </div>
                     <span className="text-gray-500 font-medium">{(item.price * item.quantity).toLocaleString()} تومان</span>
                   </div>
 

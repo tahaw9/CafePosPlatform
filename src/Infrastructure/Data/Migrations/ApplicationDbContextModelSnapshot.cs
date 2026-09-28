@@ -17,7 +17,7 @@ namespace CafePosBackend.Infrastructure.Data.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.9")
+                .HasAnnotation("ProductVersion", "10.0.12")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -121,13 +121,22 @@ namespace CafePosBackend.Infrastructure.Data.Migrations
 
                     b.Property<string>("ProductName")
                         .IsRequired()
-                        .HasColumnType("text");
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<Guid?>("ProductVariantId")
+                        .HasColumnType("uuid");
 
                     b.Property<int>("Quantity")
                         .HasColumnType("integer");
 
                     b.Property<decimal>("UnitPrice")
-                        .HasColumnType("numeric");
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<string>("VariantName")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
 
                     b.HasKey("Id");
 
@@ -135,7 +144,9 @@ namespace CafePosBackend.Infrastructure.Data.Migrations
 
                     b.HasIndex("ProductId");
 
-                    b.ToTable("OrderItems");
+                    b.HasIndex("ProductVariantId");
+
+                    b.ToTable("OrderItems", (string)null);
                 });
 
             modelBuilder.Entity("CafePosBackend.Domain.Entities.Product", b =>
@@ -181,6 +192,37 @@ namespace CafePosBackend.Infrastructure.Data.Migrations
                     b.HasIndex("CategoryId");
 
                     b.ToTable("Products");
+                });
+
+            modelBuilder.Entity("CafePosBackend.Domain.Entities.ProductVariant", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("DisplayOrder")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("IsAvailable")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<decimal>("Price")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<Guid>("ProductId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProductId");
+
+                    b.ToTable("ProductVariants", (string)null);
                 });
 
             modelBuilder.Entity("CafePosBackend.Domain.Entities.Table", b =>
@@ -547,9 +589,16 @@ namespace CafePosBackend.Infrastructure.Data.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("CafePosBackend.Domain.Entities.ProductVariant", "ProductVariant")
+                        .WithMany()
+                        .HasForeignKey("ProductVariantId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.Navigation("Order");
 
                     b.Navigation("Product");
+
+                    b.Navigation("ProductVariant");
                 });
 
             modelBuilder.Entity("CafePosBackend.Domain.Entities.Product", b =>
@@ -561,6 +610,17 @@ namespace CafePosBackend.Infrastructure.Data.Migrations
                         .IsRequired();
 
                     b.Navigation("Category");
+                });
+
+            modelBuilder.Entity("CafePosBackend.Domain.Entities.ProductVariant", b =>
+                {
+                    b.HasOne("CafePosBackend.Domain.Entities.Product", "Product")
+                        .WithMany("Variants")
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Product");
                 });
 
             modelBuilder.Entity("CafePosBackend.Domain.Entities.TodoItem", b =>
@@ -667,6 +727,11 @@ namespace CafePosBackend.Infrastructure.Data.Migrations
             modelBuilder.Entity("CafePosBackend.Domain.Entities.Order", b =>
                 {
                     b.Navigation("Items");
+                });
+
+            modelBuilder.Entity("CafePosBackend.Domain.Entities.Product", b =>
+                {
+                    b.Navigation("Variants");
                 });
 
             modelBuilder.Entity("CafePosBackend.Domain.Entities.TodoList", b =>

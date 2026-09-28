@@ -3,10 +3,18 @@ import { useMenuStore, MenuItem } from '../store/useMenuStore';
 import { getImageUrl } from '../lib/api';
 import * as Dialog from '@radix-ui/react-dialog';
 import * as AlertDialog from '@radix-ui/react-alert-dialog';
-import { Plus, Edit2, Trash2, Search, X, FolderKanban } from 'lucide-react';
+import { Plus, Edit2, Trash2, Search, X, FolderKanban, Layers } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Dropdown from '../components/Admin/Dropdown';
 import CategoryManagementModal from '../components/Admin/CategoryManagementModal';
+
+interface FormVariantItem {
+  id?: string;
+  name: string;
+  price: string;
+  isAvailable: boolean;
+  displayOrder: number;
+}
 
 export default function AdminInventory() {
   const { items, categories, fetchMenu, addItem, updateItem, deleteItem, toggleItemAvailability, isSubmitting, isLoading } = useMenuStore();
@@ -27,6 +35,9 @@ export default function AdminInventory() {
     description: '',
     isAvailable: true,
   });
+
+  const [hasVariants, setHasVariants] = useState(false);
+  const [variants, setVariants] = useState<FormVariantItem[]>([]);
 
   React.useEffect(() => {
     fetchMenu();
@@ -55,6 +66,8 @@ export default function AdminInventory() {
       description: '',
       isAvailable: true
     });
+    setHasVariants(false);
+    setVariants([]);
     setIsFormModalOpen(true);
   };
 
@@ -70,6 +83,21 @@ export default function AdminInventory() {
       description: item.description || '',
       isAvailable: item.isAvailable,
     });
+    if (item.variants && item.variants.length > 0) {
+      setHasVariants(true);
+      setVariants(
+        item.variants.map((v, idx) => ({
+          id: v.id,
+          name: v.name,
+          price: v.price.toString(),
+          isAvailable: v.isAvailable,
+          displayOrder: v.displayOrder ?? idx
+        }))
+      );
+    } else {
+      setHasVariants(false);
+      setVariants([]);
+    }
     setIsFormModalOpen(true);
   };
 
@@ -78,8 +106,40 @@ export default function AdminInventory() {
     setIsFormModalOpen(false);
     setTimeout(() => {
       setEditingItem(null);
+      setHasVariants(false);
+      setVariants([]);
     }, 200);
   };
+
+  const handleAddVariant = () => {
+    setVariants(prev => [
+      ...prev,
+      {
+        name: '',
+        price: '',
+        isAvailable: true,
+        displayOrder: prev.length
+      }
+    ]);
+  };
+
+  const handleRemoveVariant = (index: number) => {
+    setVariants(prev => prev.filter((_, idx) => idx !== index));
+  };
+
+  const handleVariantChange = (index: number, field: keyof FormVariantItem, value: any) => {
+    setVariants(prev => prev.map((v, idx) => {
+      if (idx === index) {
+        return { ...v, [field]: value };
+      }
+      return v;
+    }));
+  };
+
+  const validVariantPrices = variants
+    .map(v => Number(v.price))
+    .filter(p => !isNaN(p) && p > 0);
+  const minVariantPrice = validVariantPrices.length > 0 ? Math.min(...validVariantPrices) : null;
 
   const toBase64 = (file: File) => new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
@@ -91,9 +151,45 @@ export default function AdminInventory() {
   // Handle submit form
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.name || !formData.price || !formData.category) {
+    if (!formData.name.trim() || !formData.category) {
       toast.error('لطفا تمام فیلدهای اجباری را پر کنید');
       return;
+    }
+
+    if (!hasVariants && (!formData.price || Number(formData.price) <= 0)) {
+      toast.error('لطفا قیمت معتبر برای محصول وارد کنید');
+      return;
+    }
+
+    // Client-side validation for variants
+    if (hasVariants) {
+      if (variants.length === 0) {
+        toast.error('لطفاً حداقل یک تنوع برای محصول اضافه کنید یا حالت تنوع را غیرفعال کنید');
+        return;
+      }
+
+      const trimmedNames = new Set<string>();
+      for (let i = 0; i < variants.length; i++) {
+        const v = variants[i];
+        const trimmedName = v.name.trim();
+        if (!trimmedName) {
+          toast.error(`نام تنوع در ردیف ${i + 1} الزامی است`);
+          return;
+        }
+
+        const priceNum = Number(v.price);
+        if (isNaN(priceNum) || priceNum <= 0) {
+          toast.error(`قیمت تنوع «${trimmedName}» باید بزرگتر از صفر باشد`);
+          return;
+        }
+
+        const lowerName = trimmedName.toLowerCase();
+        if (trimmedNames.has(lowerName)) {
+          toast.error(`نام تنوع «${trimmedName}» تکراری است. نام هر تنوع باید یکتا باشد`);
+          return;
+        }
+        trimmedNames.add(lowerName);
+      }
     }
 
     let base64Image = '';
@@ -111,14 +207,25 @@ export default function AdminInventory() {
       return;
     }
 
+    const finalPrice = hasVariants && minVariantPrice !== null && minVariantPrice > 0
+      ? minVariantPrice
+      : Number(formData.price);
+
     const payload = {
-      name: formData.name,
-      price: Number(formData.price),
+      name: formData.name.trim(),
+      price: finalPrice,
       category: formData.category,
-      image: '', // This will be ignored or kept as empty string
+      image: '',
       base64Image: base64Image !== '' ? base64Image : undefined,
-      description: formData.description,
+      description: formData.description.trim(),
       isAvailable: formData.isAvailable,
+      variants: hasVariants ? variants.map((v, idx) => ({
+        id: v.id,
+        name: v.name.trim(),
+        price: Number(v.price),
+        isAvailable: v.isAvailable,
+        displayOrder: idx
+      })) : (editingItem && editingItem.variants && editingItem.variants.length > 0 ? [] : undefined)
     };
 
     try {
@@ -210,9 +317,28 @@ export default function AdminInventory() {
                     <td className="p-4 text-right">
                       <img src={getImageUrl(item.image)} alt={item.name} className="w-12 h-12 rounded-lg object-cover" />
                     </td>
-                    <td className="p-4 font-bold text-right">{item.name}</td>
+                    <td className="p-4 font-bold text-right">
+                      <div className="flex items-center gap-2">
+                        <span>{item.name}</span>
+                        {item.variants && item.variants.length > 0 && (
+                          <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-800 bg-emerald-100/90 px-2 py-0.5 rounded-full border border-emerald-200">
+                            <Layers size={11} className="text-emerald-700" />
+                            {item.variants.length} نوع
+                          </span>
+                        )}
+                      </div>
+                    </td>
                     <td className="p-4 text-gray-500 text-right">{category?.name}</td>
-                    <td className="p-4 text-right">{item.price.toLocaleString()}</td>
+                    <td className="p-4 text-right">
+                      {item.variants && item.variants.length > 0 ? (
+                        <div className="flex items-baseline gap-1 font-bold text-[#0f3229]">
+                          <span className="text-[11px] font-normal text-gray-500">از</span>
+                          <span>{(item.startingPrice || item.price).toLocaleString()}</span>
+                        </div>
+                      ) : (
+                        <span>{item.price.toLocaleString()}</span>
+                      )}
+                    </td>
                     <td className="p-4 text-right">
                       <button
                         onClick={async () => {
@@ -263,7 +389,7 @@ export default function AdminInventory() {
       <Dialog.Root open={isFormModalOpen} onOpenChange={(open) => !open && handleCloseModal()}>
         <Dialog.Portal>
           <Dialog.Overlay className="fixed inset-0 bg-black/50 z-[100] dialog-overlay" />
-          <Dialog.Content className="fixed bg-white rounded-xl shadow-xl w-[90vw] max-w-md z-[101] dialog-content p-6 rtl border border-[#8fa8a4] max-h-[90vh] flex flex-col">
+          <Dialog.Content className="fixed bg-white rounded-xl shadow-xl w-[90vw] max-w-xl z-[101] dialog-content p-6 rtl border border-[#8fa8a4] max-h-[90vh] flex flex-col">
             <Dialog.Title className="text-xl font-bold text-gray-900 mb-6 shrink-0">
               {editingItem ? 'ویرایش محصول' : 'افزودن محصول جدید'}
             </Dialog.Title>
@@ -282,19 +408,6 @@ export default function AdminInventory() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">قیمت (تومان) *</label>
-                <input
-                  type="number"
-                  required
-                  min="0"
-                  value={formData.price}
-                  onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                  className="w-full border border-gray-200 bg-white text-gray-900 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#0f3229]"
-                  placeholder="مثال: 85000"
-                />
-              </div>
-
-              <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">دسته‌بندی *</label>
                 <Dropdown
                   value={formData.category}
@@ -302,6 +415,185 @@ export default function AdminInventory() {
                   options={categories.map(cat => ({ value: cat.id, label: cat.name }))}
                   triggerClassName="w-full py-2.5 text-right font-medium bg-white text-gray-900 border border-gray-200"
                 />
+              </div>
+
+              <div>
+                <div className="flex justify-between items-center mb-1">
+                  <label className="block text-sm font-medium text-gray-700">
+                    {hasVariants ? 'قیمت پایه (حداقل قیمت) *' : 'قیمت (تومان) *'}
+                  </label>
+                  {hasVariants && minVariantPrice !== null && (
+                    <span className="text-[11px] font-medium text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200/50">
+                      محاسبه خودکار از کمترین تنوع
+                    </span>
+                  )}
+                </div>
+                <input
+                  type="number"
+                  required={!hasVariants}
+                  min="0"
+                  value={hasVariants && minVariantPrice !== null ? minVariantPrice : formData.price}
+                  onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                  disabled={hasVariants && minVariantPrice !== null}
+                  className={`w-full border border-gray-200 bg-white text-gray-900 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#0f3229] ${
+                    hasVariants && minVariantPrice !== null ? 'bg-gray-100 text-gray-600 cursor-not-allowed' : ''
+                  }`}
+                  placeholder="مثال: 85000"
+                />
+                {hasVariants && (
+                  <p className="text-[11px] text-gray-400 mt-1">
+                    این قیمت به عنوان شروع قیمت در کارت‌های منو و صندوق نمایش داده می‌شود.
+                  </p>
+                )}
+              </div>
+
+              {/* Product Variants Section */}
+              <div className="border border-gray-200 rounded-xl p-4 bg-gray-50/70 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex flex-col">
+                    <div className="flex items-center gap-2">
+                      <Layers className="w-4 h-4 text-[#0f3229]" />
+                      <span className="text-sm font-bold text-gray-900">محصول دارای تنوع / واریانت</span>
+                    </div>
+                    <span className="text-xs text-gray-500 mt-0.5">
+                      برای تعریف گزینه‌ها و قیمت‌های مختلف (سایز، نوع دانه، ...)
+                    </span>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={hasVariants}
+                      onChange={(e) => {
+                        const checked = e.target.checked;
+                        setHasVariants(checked);
+                        if (checked && variants.length === 0) {
+                          setVariants([
+                            {
+                              name: '',
+                              price: formData.price || '',
+                              isAvailable: true,
+                              displayOrder: 0
+                            }
+                          ]);
+                        }
+                      }}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#0f3229]"></div>
+                  </label>
+                </div>
+
+                {hasVariants && (
+                  <div className="pt-2 border-t border-gray-200/80 space-y-3">
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs font-bold text-gray-700">
+                        لیست انواع {variants.length > 0 && `(${variants.length})`}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={handleAddVariant}
+                        className="inline-flex items-center gap-1.5 text-xs font-bold text-[#0f3229] hover:text-[#164237] bg-white hover:bg-emerald-50 px-3 py-1.5 rounded-lg border border-gray-200 hover:border-emerald-300 transition-colors shadow-2xs cursor-pointer"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        افزودن نوع جدید
+                      </button>
+                    </div>
+
+                    {variants.length === 0 ? (
+                      /* Empty State */
+                      <div className="border-2 border-dashed border-gray-300 rounded-xl p-5 text-center bg-white/70">
+                        <Layers className="w-7 h-7 mx-auto text-gray-400 mb-1.5" />
+                        <p className="text-xs font-bold text-gray-700 mb-0.5">هنوز تنوعی برای این محصول ثبت نشده است</p>
+                        <p className="text-[11px] text-gray-400 mb-3">اندازه‌ها یا گزینه‌های مختلف را با قیمت جداگانه تعریف کنید</p>
+                        <button
+                          type="button"
+                          onClick={handleAddVariant}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#0f3229] text-[#d4af37] text-xs font-bold hover:bg-[#164237] transition-colors cursor-pointer"
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                          افزودن اولین نوع
+                        </button>
+                      </div>
+                    ) : (
+                      /* Variants Repeater List */
+                      <div className="space-y-2 max-h-56 overflow-y-auto custom-scrollbar pr-0.5">
+                        {/* Desktop Header */}
+                        <div className="hidden sm:grid sm:grid-cols-12 gap-2 px-3 py-1 text-[11px] font-bold text-gray-500">
+                          <div className="col-span-5">نام تنوع / سایز *</div>
+                          <div className="col-span-4">قیمت (تومان) *</div>
+                          <div className="col-span-2 text-center">موجودی</div>
+                          <div className="col-span-1 text-center">حذف</div>
+                        </div>
+
+                        {variants.map((variant, index) => (
+                          <div
+                            key={variant.id || index}
+                            className="p-2.5 bg-white border border-gray-200 rounded-xl shadow-2xs hover:border-gray-300 transition-colors"
+                          >
+                            <div className="grid grid-cols-1 sm:grid-cols-12 gap-2 items-center">
+                              {/* Title */}
+                              <div className="sm:col-span-5">
+                                <label className="block text-[11px] font-medium text-gray-500 mb-1 sm:hidden">نام تنوع *</label>
+                                <input
+                                  type="text"
+                                  placeholder="مثال: تک شات / دانه تجاری"
+                                  value={variant.name}
+                                  onChange={(e) => handleVariantChange(index, 'name', e.target.value)}
+                                  className="w-full border border-gray-200 bg-white text-gray-900 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0f3229]"
+                                />
+                              </div>
+
+                              {/* Price */}
+                              <div className="sm:col-span-4">
+                                <label className="block text-[11px] font-medium text-gray-500 mb-1 sm:hidden">قیمت (تومان) *</label>
+                                <div className="relative">
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    placeholder="قیمت"
+                                    value={variant.price}
+                                    onChange={(e) => handleVariantChange(index, 'price', e.target.value)}
+                                    className="w-full border border-gray-200 bg-white text-gray-900 rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0f3229]"
+                                  />
+                                  <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[10px] text-gray-400 select-none">تومان</span>
+                                </div>
+                              </div>
+
+                              {/* Availability Toggle */}
+                              <div className="sm:col-span-2 flex items-center justify-between sm:justify-center">
+                                <span className="text-[11px] text-gray-500 sm:hidden">وضعیت:</span>
+                                <button
+                                  type="button"
+                                  onClick={() => handleVariantChange(index, 'isAvailable', !variant.isAvailable)}
+                                  className={`min-w-[40px] min-h-[40px] px-2 py-1 rounded-lg text-xs font-bold transition-colors cursor-pointer flex items-center justify-center ${
+                                    variant.isAvailable
+                                      ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200'
+                                      : 'bg-red-100 text-red-700 hover:bg-red-200'
+                                  }`}
+                                  title={variant.isAvailable ? 'موجود است (برای تغییر کلیک کنید)' : 'ناموجود است (برای تغییر کلیک کنید)'}
+                                >
+                                  {variant.isAvailable ? 'موجود' : 'ناموجود'}
+                                </button>
+                              </div>
+
+                              {/* Remove Button */}
+                              <div className="sm:col-span-1 flex items-center justify-end sm:justify-center">
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveVariant(index)}
+                                  className="w-10 h-10 flex items-center justify-center text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+                                  title="حذف این ردیف"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               <div>

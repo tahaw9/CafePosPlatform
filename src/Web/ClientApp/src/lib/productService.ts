@@ -1,5 +1,20 @@
 import api from './api';
 
+export interface CreateProductVariantRequest {
+  name: string;
+  price: number;
+  isAvailable?: boolean;
+  displayOrder?: number;
+}
+
+export interface UpdateProductVariantRequest {
+  id?: string;
+  name: string;
+  price: number;
+  isAvailable?: boolean;
+  displayOrder?: number;
+}
+
 export interface CreateProductRequest {
   name: string;
   price: number;
@@ -7,6 +22,7 @@ export interface CreateProductRequest {
   isAvailable: boolean;
   description?: string;
   categoryId: string;
+  variants?: CreateProductVariantRequest[];
 }
 
 export interface UpdateProductRequest {
@@ -17,6 +33,16 @@ export interface UpdateProductRequest {
   isAvailable: boolean;
   description?: string;
   categoryId: string;
+  variants?: UpdateProductVariantRequest[];
+}
+
+export interface ProductVariantDto {
+  id: string;
+  productId: string;
+  name: string;
+  price: number;
+  isAvailable: boolean;
+  displayOrder: number;
 }
 
 export interface ProductDto {
@@ -28,6 +54,8 @@ export interface ProductDto {
   description: string | null;
   categoryId: string;
   categoryName: string | null;
+  startingPrice?: number;
+  variants?: ProductVariantDto[];
 }
 
 export type { CategoryDto } from './categoryService';

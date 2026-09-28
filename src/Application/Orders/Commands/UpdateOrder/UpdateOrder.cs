@@ -71,7 +71,9 @@ public class UpdateOrderCommandHandler : IRequestHandler<UpdateOrderCommand, boo
             entity.Items.Add(new OrderItem
             {
                 ProductId = itemDto.ProductId,
+                ProductVariantId = itemDto.ProductVariantId,
                 ProductName = itemDto.ProductName,
+                VariantName = itemDto.VariantName,
                 UnitPrice = itemDto.UnitPrice,
                 Quantity = itemDto.Quantity,
                 Note = itemDto.Note

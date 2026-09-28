@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Text;
 
@@ -12,8 +12,12 @@ public class OrderItem : BaseEntity
     public Guid ProductId { get; set; }
     public Product Product { get; set; } = null!;
 
+    public Guid? ProductVariantId { get; set; }
+    public ProductVariant? ProductVariant { get; set; }
+
     // Snapshots (Storing name and price securely in case menu changes later)
     public string ProductName { get; set; } = string.Empty;
+    public string? VariantName { get; set; }
     public decimal UnitPrice { get; set; }
 
     public int Quantity { get; set; }

@@ -7,8 +7,10 @@ export type OrderStatus = 'pending' | 'preparing' | 'completed' | 'cancelled';
 export type PaymentMethod = 'card' | 'cash' | 'transfer' | null;
 
 export interface OrderItem {
-  id: string; // Cart item ID
+  id: string; // Cart item ID: composite key
   productId: string;
+  productVariantId?: string;
+  variantName?: string;
   name: string;
   price: number;
   quantity: number;
@@ -72,6 +74,8 @@ const mapBackendOrder = (o: OrderDto): Order => ({
   items: o.items.map(item => ({
     id: item.id,
     productId: item.productId,
+    productVariantId: item.productVariantId || undefined,
+    variantName: item.variantName || undefined,
     name: item.productName,
     price: item.unitPrice,
     quantity: item.quantity,
@@ -128,7 +132,9 @@ export const useOrderStore = create<OrderState>((set, get) => ({
         isPaid: orderData.isPaid,
         items: orderData.items.map(item => ({
           productId: item.productId,
+          productVariantId: item.productVariantId || null,
           productName: item.name,
+          variantName: item.variantName || null,
           unitPrice: item.price,
           quantity: item.quantity,
           note: item.note || null
@@ -359,7 +365,9 @@ export const useOrderStore = create<OrderState>((set, get) => ({
         isPaid: orderData.isPaid,
         items: orderData.items.map(item => ({
           productId: item.productId,
+          productVariantId: item.productVariantId || null,
           productName: item.name,
+          variantName: item.variantName || null,
           unitPrice: item.price,
           quantity: item.quantity,
           note: item.note || null

@@ -4,7 +4,9 @@ using CafePosBackend.Application.Categories;
 using CafePosBackend.Application.Common.Interfaces;
 using CafePosBackend.Application.Tables.Queries.GetTables;
 using CafePosBackend.Application.TodoLists.Queries.GetTodos;
+using CafePosBackend.Application.Product;
 using CafePosBackend.Domain.Entities;
+using DomainProduct = CafePosBackend.Domain.Entities.Product;
 using Microsoft.Extensions.Logging;
 using NUnit.Framework;
 
@@ -40,6 +42,8 @@ public class MappingTests
     [TestCase(typeof(TodoItem), typeof(TodoItemDto))]
     [TestCase(typeof(Table), typeof(TableDto))]
     [TestCase(typeof(Category), typeof(CategoryDto))]
+    [TestCase(typeof(DomainProduct), typeof(ProductDto))]
+    [TestCase(typeof(ProductVariant), typeof(ProductVariantDto))]
     public void ShouldSupportMappingFromSourceToDestination(Type source, Type destination)
     {
         var instance = GetInstanceOf(source);

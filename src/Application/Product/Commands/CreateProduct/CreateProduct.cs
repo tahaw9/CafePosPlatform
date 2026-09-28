@@ -1,9 +1,20 @@
-using System.ComponentModel.DataAnnotations.Schema;
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using CafePosBackend.Application.Common.Interfaces;
 using CafePosBackend.Domain.Entities;
-using Microsoft.Build.Tasks.Deployment.Bootstrapper;
+using FluentValidation;
+using MediatR;
 
 namespace CafePosBackend.Application.Product.Commands.CreateProduct;
+
+public record CreateProductVariantDto
+{
+    public string Name { get; set; } = string.Empty;
+    public decimal Price { get; set; }
+    public bool IsAvailable { get; set; } = true;
+    public int DisplayOrder { get; set; } = 0;
+}
 
 public record CreateProductCommand : IRequest<Guid>
 {
@@ -13,12 +24,21 @@ public record CreateProductCommand : IRequest<Guid>
     public bool IsAvailable { get; set; }
     public string? Description { get; set; }
     public Guid CategoryId { get; set; }
+    public List<CreateProductVariantDto>? Variants { get; set; }
 }
 
 public class CreateProductCommandValidator : AbstractValidator<CreateProductCommand>
 {
     public CreateProductCommandValidator()
     {
+        RuleFor(x => x.Name).NotEmpty().MaximumLength(100);
+        RuleFor(x => x.Price).GreaterThanOrEqualTo(0);
+        RuleFor(x => x.CategoryId).NotEqual(Guid.Empty);
+        RuleForEach(x => x.Variants).ChildRules(v =>
+        {
+            v.RuleFor(x => x.Name).NotEmpty().MaximumLength(100);
+            v.RuleFor(x => x.Price).GreaterThan(0);
+        });
     }
 }
 
@@ -53,6 +73,22 @@ public class CreateProductCommandHandler : IRequestHandler<CreateProductCommand,
             IsAvailable = request.IsAvailable,
             Id = Guid.NewGuid()
         };
+
+        if (request.Variants != null && request.Variants.Count > 0)
+        {
+            foreach (var v in request.Variants)
+            {
+                entity.Variants.Add(new ProductVariant
+                {
+                    Id = Guid.NewGuid(),
+                    ProductId = entity.Id,
+                    Name = v.Name,
+                    Price = v.Price,
+                    IsAvailable = v.IsAvailable,
+                    DisplayOrder = v.DisplayOrder
+                });
+            }
+        }
 
         _context.Products.Add(entity);
 

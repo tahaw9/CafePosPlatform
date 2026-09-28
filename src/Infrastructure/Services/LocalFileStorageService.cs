@@ -21,8 +21,9 @@ public class LocalFileStorageService : IFileStorageService
         try
         {
             // The base64 string might contain data:image/png;base64, prefix. We need to remove it.
-            var base64Data = Regex.Match(base64Image, @"data:image/(?<type>.+?),(?<data>.+)").Groups["data"].Value;
-            var ext = Regex.Match(base64Image, @"data:image/(?<type>.+?),(?<data>.+)").Groups["type"].Value;
+            var imageMatch = Regex.Match(base64Image, @"data:image/(?<type>.+?),(?<data>.+)");
+            var base64Data = imageMatch.Groups["data"].Value;
+            var ext = imageMatch.Groups["type"].Value;
             
             if (string.IsNullOrEmpty(base64Data))
             {

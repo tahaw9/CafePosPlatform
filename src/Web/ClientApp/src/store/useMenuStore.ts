@@ -15,14 +15,25 @@ import {
 } from '../lib/categoryService';
 import toast from 'react-hot-toast';
 
+export interface ProductVariant {
+  id?: string;
+  productId?: string;
+  name: string;
+  price: number;
+  isAvailable: boolean;
+  displayOrder: number;
+}
+
 export interface MenuItem {
   id: string;
   name: string;
   price: number;
+  startingPrice?: number;
   image: string;
   isAvailable: boolean;
   category: string;
   description?: string;
+  variants?: ProductVariant[];
 }
 
 export interface MenuCategory {
@@ -72,14 +83,16 @@ export const useMenuStore = create<MenuState>((set, get) => ({
         }))
         .sort((a, b) => a.displayOrder - b.displayOrder || a.name.localeCompare(b.name));
 
-      const items = backendProducts.map(p => ({
+      const items: MenuItem[] = backendProducts.map(p => ({
         id: p.id,
         name: p.name,
         price: p.price,
+        startingPrice: p.startingPrice,
         image: p.imageUrl || '',
         isAvailable: p.isAvailable,
         category: p.categoryId,
-        description: p.description || undefined
+        description: p.description || undefined,
+        variants: (p.variants || []).sort((a, b) => a.displayOrder - b.displayOrder)
       }));
 
       set({ categories, items });
@@ -99,21 +112,22 @@ export const useMenuStore = create<MenuState>((set, get) => ({
     set({ isSubmitting: true });
 
     try {
-      const newId = await createProduct({
+      await createProduct({
         name: item.name,
         price: item.price,
         base64Image: item.base64Image || '',
         isAvailable: item.isAvailable,
         description: item.description,
         categoryId: item.category,
+        variants: item.variants ? item.variants.map((v, idx) => ({
+          name: v.name,
+          price: v.price,
+          isAvailable: v.isAvailable,
+          displayOrder: v.displayOrder ?? idx
+        })) : undefined
       });
 
-      set((state) => ({
-        items: [...state.items, { ...item, id: newId, image: item.base64Image || '' }],
-        categories: state.categories.map((c) =>
-          c.id === item.category ? { ...c, itemCount: c.itemCount + 1 } : c
-        )
-      }));
+      await get().fetchMenu();
     } catch (error: any) {
       const message = error?.response?.data?.detail
         || error?.response?.data?.title
@@ -141,26 +155,19 @@ export const useMenuStore = create<MenuState>((set, get) => ({
         base64Image: item.base64Image,
         isAvailable: item.isAvailable !== undefined ? item.isAvailable : original.isAvailable,
         description: item.description !== undefined ? item.description : original.description,
-        categoryId: item.category !== undefined ? item.category : original.category
+        categoryId: item.category !== undefined ? item.category : original.category,
+        variants: item.variants !== undefined ? item.variants.map((v, idx) => ({
+          id: v.id || undefined,
+          name: v.name,
+          price: v.price,
+          isAvailable: v.isAvailable,
+          displayOrder: v.displayOrder ?? idx
+        })) : undefined
       };
 
       await updateProduct(payload);
 
-      set((state) => {
-        let updatedCategories = state.categories;
-        if (item.category && item.category !== original.category) {
-          updatedCategories = updatedCategories.map((c) => {
-            if (c.id === original.category) return { ...c, itemCount: Math.max(0, c.itemCount - 1) };
-            if (c.id === item.category) return { ...c, itemCount: c.itemCount + 1 };
-            return c;
-          });
-        }
-
-        return {
-          items: state.items.map((i) => (i.id === id ? { ...i, ...item, image: item.base64Image || i.image } : i)),
-          categories: updatedCategories
-        };
-      });
+      await get().fetchMenu();
     } catch (error: any) {
       const message = error?.response?.data?.detail
         || error?.response?.data?.title

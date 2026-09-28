@@ -10,6 +10,7 @@ public interface IApplicationDbContext
     DbSet<TodoItem> TodoItems { get; }
 
     DbSet<CafePosBackend.Domain.Entities.Product> Products { get; }
+    DbSet<ProductVariant> ProductVariants { get; }
     DbSet<Category> Categories { get; }
     DbSet<Order> Orders { get; }
     DbSet<OrderItem> OrderItems { get; }

@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations.Schema;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace CafePosBackend.Domain.Entities;
 
@@ -26,4 +26,6 @@ public class Product : BaseAuditableEntity
 
     [ForeignKey("CategoryId")]
     public Category Category { get; set; } = null!;
+
+    public ICollection<ProductVariant> Variants { get; set; } = new List<ProductVariant>();
 }

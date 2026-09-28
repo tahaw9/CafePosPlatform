@@ -55,11 +55,27 @@ const ThermalReceipt = forwardRef<HTMLDivElement, ThermalReceiptProps>(
         </thead>
         <tbody>
           {cart.map((item, i) => (
-            <tr key={i}>
-              <td className="text-start py-1 truncate pe-1">{item.name}</td>
-              <td className="text-center py-1">{item.quantity}</td>
-              <td className="text-end py-1">{(item.price * item.quantity).toLocaleString()}</td>
-            </tr>
+            <React.Fragment key={i}>
+              <tr>
+                <td className="text-start py-0.5 truncate pe-1">{item.name}</td>
+                <td className="text-center py-0.5">{item.quantity}</td>
+                <td className="text-end py-0.5 font-mono">{(item.price * item.quantity).toLocaleString()}</td>
+              </tr>
+              {item.variantName && (
+                <tr>
+                  <td colSpan={3} className="text-start text-xs pb-0.5 ps-2 text-gray-700">
+                    ↳ {item.variantName}
+                  </td>
+                </tr>
+              )}
+              {item.note && (
+                <tr>
+                  <td colSpan={3} className="text-start text-[11px] italic pb-0.5 ps-2 text-gray-500">
+                    * {item.note}
+                  </td>
+                </tr>
+              )}
+            </React.Fragment>
           ))}
         </tbody>
       </table>

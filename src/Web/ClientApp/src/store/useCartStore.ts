@@ -1,7 +1,10 @@
 import { create } from 'zustand';
 
 export interface OrderItem {
+  cartItemId: string; // Composite unique key: `${menuItemId}_${productVariantId || 'default'}`
   menuItemId: string;
+  productVariantId?: string;
+  variantName?: string;
   quantity: number;
   note: string;
   price: number;
@@ -10,9 +13,9 @@ export interface OrderItem {
 
 interface CartState {
   items: OrderItem[];
-  addItem: (item: OrderItem) => void;
-  removeItem: (menuItemId: string) => void;
-  updateQuantity: (menuItemId: string, quantity: number) => void;
+  addItem: (item: Omit<OrderItem, 'cartItemId'> & { cartItemId?: string }) => void;
+  removeItem: (cartItemId: string) => void;
+  updateQuantity: (cartItemId: string, quantity: number) => void;
   clearCart: () => void;
   totalAmount: () => number;
 }
@@ -20,23 +23,24 @@ interface CartState {
 export const useCartStore = create<CartState>((set, get) => ({
   items: [],
   addItem: (item) => set((state) => {
-    const existing = state.items.find(i => i.menuItemId === item.menuItemId);
-    if (existing) {
-      return {
-        items: state.items.map(i => 
-          i.menuItemId === item.menuItemId 
-            ? { ...i, quantity: i.quantity + item.quantity, note: item.note ? item.note : i.note } 
-            : i
-        )
+    const cartItemId = item.cartItemId || `${item.menuItemId}_${item.productVariantId || 'default'}`;
+    const existingIndex = state.items.findIndex(i => i.cartItemId === cartItemId);
+    if (existingIndex > -1) {
+      const updated = [...state.items];
+      updated[existingIndex] = {
+        ...updated[existingIndex],
+        quantity: updated[existingIndex].quantity + item.quantity,
+        note: item.note ? item.note : updated[existingIndex].note
       };
+      return { items: updated };
     }
-    return { items: [...state.items, item] };
+    return { items: [...state.items, { ...item, cartItemId }] };
   }),
-  removeItem: (menuItemId) => set((state) => ({
-    items: state.items.filter(i => i.menuItemId !== menuItemId)
+  removeItem: (cartItemId) => set((state) => ({
+    items: state.items.filter(i => i.cartItemId !== cartItemId)
   })),
-  updateQuantity: (menuItemId, quantity) => set((state) => ({
-    items: state.items.map(i => i.menuItemId === menuItemId ? { ...i, quantity } : i)
+  updateQuantity: (cartItemId, quantity) => set((state) => ({
+    items: state.items.map(i => i.cartItemId === cartItemId ? { ...i, quantity } : i)
   })),
   clearCart: () => set({ items: [] }),
   totalAmount: () => get().items.reduce((total, item) => total + (item.price * item.quantity), 0),
