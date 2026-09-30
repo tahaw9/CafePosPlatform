@@ -8,6 +8,8 @@ public static class DependencyInjection
 {
     public static void AddApplicationServices(this IHostApplicationBuilder builder)
     {
+        builder.Services.AddMemoryCache();
+
         builder.Services.AddAutoMapper(cfg => 
             cfg.AddMaps(Assembly.GetExecutingAssembly()));
 

@@ -167,7 +167,7 @@ public class CreateOrderCommandHandler : IRequestHandler<CreateOrderCommand, Gui
         }
 
         // 3. Deterministic total computation
-        decimal calculatedSubtotal = orderItems.Sum(x => x.Quantity * x.UnitPrice);
+        decimal calculatedSubtotal = orderItems.Sum(x => x.LineTotal);
         decimal calculatedTotal = calculatedSubtotal;
 
         if (request.DiscountType.HasValue && request.DiscountValue.HasValue && request.DiscountValue.Value > 0)

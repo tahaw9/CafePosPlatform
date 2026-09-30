@@ -22,4 +22,11 @@ public class OrderItem : BaseEntity
 
     public int Quantity { get; set; }
     public string? Note { get; set; }
+
+    // Extras snapshot collection (mapped to jsonb column)
+    public List<OrderItemExtra> Extras { get; set; } = new();
+
+    public decimal ExtrasUnitPrice => Extras?.Sum(e => e.Price) ?? 0m;
+    public decimal TotalUnitPrice => UnitPrice + ExtrasUnitPrice;
+    public decimal LineTotal => TotalUnitPrice * Quantity;
 }

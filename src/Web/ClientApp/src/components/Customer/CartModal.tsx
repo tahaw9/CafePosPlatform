@@ -149,6 +149,9 @@ export default function CartModal({ isOpen, onClose, tableId }: CartModalProps) 
             transition={{ type: "spring", damping: 25, stiffness: 300 }}
             className="relative w-full max-w-md bg-[#0f3229] border border-[#8fa8a4]/30 rounded-t-3xl sm:rounded-3xl flex flex-col overflow-hidden max-h-[90vh] shadow-2xl"
           >
+            {/* Mobile Drag Affordance Pill */}
+            <div className="w-12 h-1.5 bg-white/25 rounded-full mx-auto my-2.5 sm:hidden shrink-0" />
+
             {/* Header */}
             <div className="p-5 border-b border-[#8fa8a4]/20 flex justify-between items-center bg-[#0a221b]">
               <h2 className="text-xl font-bold text-cafe-text">سفارشات شما (میز {tableId || activeTableId})</h2>
@@ -158,7 +161,7 @@ export default function CartModal({ isOpen, onClose, tableId }: CartModalProps) 
             </div>
 
             {/* Items List */}
-            <div className="p-5 flex-grow overflow-y-auto custom-scrollbar">
+            <div className="p-5 flex-grow overflow-y-auto custom-scrollbar overscroll-contain">
               {items.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-48 text-cafe-item">
                   <ShoppingBag size={48} className="opacity-40 mb-3" />

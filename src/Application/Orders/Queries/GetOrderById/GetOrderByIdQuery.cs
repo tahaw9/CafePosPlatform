@@ -25,12 +25,12 @@ public class GetOrderByIdQueryHandler : IRequestHandler<GetOrderByIdQuery, Order
 
     public async Task<OrderDto?> Handle(GetOrderByIdQuery request, CancellationToken cancellationToken)
     {
-        return await _context.Orders
+        var order = await _context.Orders
             .Include(o => o.Items)
             .Include(o => o.Table)
             .AsNoTracking()
-            .Where(o => o.Id == request.Id)
-            .ProjectTo<OrderDto>(_mapper.ConfigurationProvider)
-            .FirstOrDefaultAsync(cancellationToken);
+            .FirstOrDefaultAsync(o => o.Id == request.Id, cancellationToken);
+
+        return order == null ? null : _mapper.Map<OrderDto>(order);
     }
 }

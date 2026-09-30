@@ -59,9 +59,10 @@ public class GetOrdersQueryHandler : IRequestHandler<GetOrdersQuery, IEnumerable
             }
         }
 
-        return await query
+        var orders = await query
             .OrderByDescending(o => o.Created)
-            .ProjectTo<OrderDto>(_mapper.ConfigurationProvider)
             .ToListAsync(cancellationToken);
+
+        return _mapper.Map<IEnumerable<OrderDto>>(orders);
     }
 }

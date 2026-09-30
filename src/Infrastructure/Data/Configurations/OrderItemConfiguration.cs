@@ -20,6 +20,13 @@ public class OrderItemConfiguration : IEntityTypeConfiguration<OrderItem>
         builder.Property(oi => oi.UnitPrice)
             .HasPrecision(18, 2);
 
+        builder.OwnsMany(oi => oi.Extras, b =>
+        {
+            b.ToJson();
+            b.Property(e => e.Name).HasMaxLength(100);
+            b.Property(e => e.Price).HasPrecision(18, 2);
+        });
+
         builder.HasOne(oi => oi.Order)
             .WithMany(o => o.Items)
             .HasForeignKey(oi => oi.OrderId)

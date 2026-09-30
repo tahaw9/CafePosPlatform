@@ -63,7 +63,7 @@ export const useMenuStore = create<MenuState>((set, get) => ({
   items: [],
   categories: [],
   isSubmitting: false,
-  isLoading: false,
+  isLoading: true,
 
   fetchMenu: async () => {
     set({ isLoading: true });

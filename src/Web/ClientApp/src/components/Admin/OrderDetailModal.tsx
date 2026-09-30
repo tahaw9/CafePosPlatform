@@ -38,24 +38,37 @@ export default function OrderDetailModal({ order, onClose }: OrderDetailModalPro
               <Tag size={18} className="text-[#0f3229]" /> جزئیات اقلام سفارش
             </h3>
             <div className="space-y-4">
-              {order.items.map(item => (
-                <div key={item.id} className="bg-gray-50 rounded-xl p-4 border border-gray-200">
-                  <div className="flex justify-between items-start mb-2">
-                    <div>
-                      <span className="font-bold text-gray-800 text-lg">
-                        {item.name}
-                        <span className="text-sm text-gray-500 bg-gray-200 px-2 py-0.5 rounded-full me-2">{item.quantity} عدد</span>
-                      </span>
-                      {item.variantName && (
-                        <div className="mt-1">
-                          <span className="inline-flex items-center text-xs font-semibold text-[#0f3229] bg-[#0f3229]/10 px-2.5 py-0.5 rounded-full border border-[#0f3229]/20">
-                            نوع: {item.variantName}
-                          </span>
-                        </div>
-                      )}
+              {order.items.map(item => {
+                const itemEffectiveUnitPrice = item.price + (item.extras?.reduce((s, e) => s + e.price, 0) || 0);
+                const lineTotal = itemEffectiveUnitPrice * item.quantity;
+
+                return (
+                  <div key={item.id} className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+                    <div className="flex justify-between items-start mb-2">
+                      <div>
+                        <span className="font-bold text-gray-800 text-lg">
+                          {item.name}
+                          <span className="text-sm text-gray-500 bg-gray-200 px-2 py-0.5 rounded-full me-2">{item.quantity} عدد</span>
+                        </span>
+                        {item.variantName && (
+                          <div className="mt-1">
+                            <span className="inline-flex items-center text-xs font-semibold text-[#0f3229] bg-[#0f3229]/10 px-2.5 py-0.5 rounded-full border border-[#0f3229]/20">
+                              نوع: {item.variantName}
+                            </span>
+                          </div>
+                        )}
+                        {item.extras && item.extras.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-1.5">
+                            {item.extras.map(extra => (
+                              <span key={extra.extraId} className="inline-flex items-center text-xs font-semibold text-[#0f3229] bg-[#0f3229]/10 px-2.5 py-0.5 rounded-full border border-[#0f3229]/20">
+                                + {extra.name} ({extra.price > 0 ? `${extra.price.toLocaleString()} تومان` : 'رایگان'})
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      <span className="text-gray-500 font-medium">{lineTotal.toLocaleString()} تومان</span>
                     </div>
-                    <span className="text-gray-500 font-medium">{(item.price * item.quantity).toLocaleString()} تومان</span>
-                  </div>
 
                   {item.note && (
                     <div className="mt-3 bg-[#0f3229]/5 border border-[#0f3229]/10 p-3 rounded-lg flex items-start gap-2">
@@ -67,8 +80,9 @@ export default function OrderDetailModal({ order, onClose }: OrderDetailModalPro
                     </div>
                   )}
                 </div>
-              ))}
-            </div>
+              );
+            })}
+          </div>
 
             <div className="mt-6 border-t border-gray-200 pt-6 space-y-3">
               <div className="flex justify-between text-gray-600 font-medium">

@@ -1,5 +1,11 @@
 import api from './api';
 
+export interface OrderItemExtraDto {
+  extraId: string;
+  name: string;
+  price: number;
+}
+
 export interface OrderItemRequest {
   productId: string;
   productVariantId?: string | null;
@@ -8,6 +14,8 @@ export interface OrderItemRequest {
   unitPrice: number;
   quantity: number;
   note?: string;
+  extraIds?: string[];
+  extras?: OrderItemExtraDto[];
 }
 
 export interface CreateOrderRequest {
@@ -35,6 +43,8 @@ export interface OrderItemDto {
   unitPrice: number;
   quantity: number;
   note?: string;
+  extraIds?: string[];
+  extras?: OrderItemExtraDto[];
 }
 
 export interface OrderDto {

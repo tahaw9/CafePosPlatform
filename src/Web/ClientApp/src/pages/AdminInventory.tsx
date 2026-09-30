@@ -3,10 +3,11 @@ import { useMenuStore, MenuItem } from '../store/useMenuStore';
 import { getImageUrl } from '../lib/api';
 import * as Dialog from '@radix-ui/react-dialog';
 import * as AlertDialog from '@radix-ui/react-alert-dialog';
-import { Plus, Edit2, Trash2, Search, X, FolderKanban, Layers } from 'lucide-react';
+import { Plus, Edit2, Trash2, Search, X, FolderKanban, Layers, Sparkles } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Dropdown from '../components/Admin/Dropdown';
 import CategoryManagementModal from '../components/Admin/CategoryManagementModal';
+import ExtraManagementModal from '../components/Admin/ExtraManagementModal';
 
 interface FormVariantItem {
   id?: string;
@@ -21,6 +22,7 @@ export default function AdminInventory() {
 
   const [searchQuery, setSearchQuery] = useState('');
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
+  const [isExtraModalOpen, setIsExtraModalOpen] = useState(false);
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
   const [deleteItemId, setDeleteItemId] = useState<string | null>(null);
@@ -284,6 +286,14 @@ export default function AdminInventory() {
           >
             <FolderKanban className="w-4 h-4 text-[#0f3229]" />
             مدیریت دسته‌بندی‌ها
+          </button>
+          <button
+            type="button"
+            onClick={() => setIsExtraModalOpen(true)}
+            className="flex items-center gap-2 bg-white text-[#0f3229] border border-gray-200 px-4 py-2.5 rounded-xl font-bold hover:bg-gray-50 transition-colors whitespace-nowrap text-sm cursor-pointer shadow-xs"
+          >
+            <Sparkles className="w-4 h-4 text-[#d4af37]" />
+            مدیریت افزودنی‌ها
           </button>
           <button
             type="button"
@@ -697,6 +707,12 @@ export default function AdminInventory() {
       <CategoryManagementModal
         isOpen={isCategoryModalOpen}
         onClose={() => setIsCategoryModalOpen(false)}
+      />
+
+      {/* Extra Management Modal */}
+      <ExtraManagementModal
+        isOpen={isExtraModalOpen}
+        onClose={() => setIsExtraModalOpen(false)}
       />
     </div>
   );

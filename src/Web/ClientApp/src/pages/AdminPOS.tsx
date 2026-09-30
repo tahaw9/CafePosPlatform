@@ -3,13 +3,15 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useMenuStore, MenuItem, ProductVariant } from '../store/useMenuStore';
 import { useOrderStore, OrderItem, PaymentMethod, OrderStatus } from '../store/useOrderStore';
 import { getImageUrl } from '../lib/api';
-import { Minus, Plus, Trash2, Printer, Layers, X } from 'lucide-react';
+import { Minus, Plus, Trash2, Printer, Layers, X, Sparkles } from 'lucide-react';
 import toast from 'react-hot-toast';
 import ThermalReceipt from '../components/Admin/ThermalReceipt';
 import { printReceiptViaIframe } from '../lib/printUtils';
 import Dropdown from '../components/Admin/Dropdown';
 import * as Dialog from '@radix-ui/react-dialog';
 import { usePcPosStore } from '../store/usePcPosStore';
+import { OrderItemExtra } from '../store/useOrderStore';
+import ExtraSelectorModal from '../components/Admin/ExtraSelectorModal';
 export default function AdminPOS() {
   const { items, categories, fetchMenu } = useMenuStore();
   const { orders, addOrder, tables, updateOrderStatus, updateOrder, fetchOrderById } = useOrderStore();
@@ -31,6 +33,40 @@ export default function AdminPOS() {
 
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [variantModalProduct, setVariantModalProduct] = useState<MenuItem | null>(null);
+  const [selectedCartItemForExtras, setSelectedCartItemForExtras] = useState<OrderItem | null>(null);
+
+  const handleOpenExtraSelector = (item: OrderItem) => {
+    setSelectedCartItemForExtras(item);
+  };
+
+  const handleConfirmExtras = (selectedExtras: OrderItemExtra[]) => {
+    if (!selectedCartItemForExtras) return;
+    setCart(prev => prev.map(item => {
+      if (item.id === selectedCartItemForExtras.id) {
+        return {
+          ...item,
+          extras: selectedExtras,
+          extraIds: selectedExtras.map(e => e.extraId)
+        };
+      }
+      return item;
+    }));
+    setSelectedCartItemForExtras(null);
+  };
+
+  const handleRemoveExtraFromItem = (itemId: string, extraId: string) => {
+    setCart(prev => prev.map(item => {
+      if (item.id === itemId) {
+        const newExtras = (item.extras || []).filter(e => e.extraId !== extraId);
+        return {
+          ...item,
+          extras: newExtras,
+          extraIds: newExtras.map(e => e.extraId)
+        };
+      }
+      return item;
+    }));
+  };
 
   const handleOpenPreview = () => {
     if (cart.length === 0) return;
@@ -120,7 +156,8 @@ export default function AdminPOS() {
     setCart(prev => {
       const existing = prev.find(item => 
         item.productId === product.id && 
-        (item.productVariantId || null) === (variantId || null)
+        (item.productVariantId || null) === (variantId || null) &&
+        (!item.extras || item.extras.length === 0)
       );
       if (existing) {
         return prev.map(item => 
@@ -130,13 +167,15 @@ export default function AdminPOS() {
       return [
         ...prev, 
         { 
-          id: cartItemId, 
+          id: `${cartItemId}_${Date.now()}`, 
           productId: product.id, 
           productVariantId: variantId,
           variantName: variantName,
           name: product.name, 
           price: price, 
-          quantity: 1 
+          quantity: 1,
+          extras: [],
+          extraIds: []
         }
       ];
     });
@@ -172,7 +211,11 @@ export default function AdminPOS() {
     setCart(prev => prev.filter(item => item.id !== id));
   };
 
-  const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  const getItemEffectiveUnitPrice = (item: OrderItem) => {
+    return item.price + (item.extras?.reduce((sum, e) => sum + e.price, 0) || 0);
+  };
+
+  const subtotal = cart.reduce((sum, item) => sum + (getItemEffectiveUnitPrice(item) * item.quantity), 0);
   const discountAmount = discountType === 'percentage' 
     ? (subtotal * (Number(discountValue) || 0)) / 100 
     : (Number(discountValue) || 0);
@@ -381,46 +424,96 @@ export default function AdminPOS() {
         </div>
 
         <div className="flex-1 overflow-y-auto p-4 custom-scrollbar space-y-3">
-          {cart.map(item => (
-            <div key={item.id} className="flex flex-col gap-2 p-3 bg-gray-50 rounded-xl border border-gray-100">
-              <div className="flex justify-between items-start">
-                <div className="flex flex-col">
-                  <span className="font-bold text-gray-900 text-sm">{item.name}</span>
-                  {item.variantName && (
-                    <span className="inline-block mt-0.5 text-[11px] font-medium text-emerald-800 bg-emerald-100/80 px-2 py-0.5 rounded-md border border-emerald-200/50 self-start">
-                      {item.variantName}
-                    </span>
-                  )}
-                </div>
-                <button onClick={() => removeFromCart(item.id)} className="text-red-500 hover:bg-red-100 p-1 rounded transition-colors">
-                  <Trash2 size={16} />
-                </button>
-              </div>
-              <div className="flex justify-between items-center text-sm">
-                <span className="text-gray-600 font-semibold">{(item.price * item.quantity).toLocaleString()} تومان</span>
-                <div className="flex items-center gap-2 bg-white rounded-lg border shadow-sm">
-                  <button onClick={() => updateQuantity(item.id, 1)} className="p-1 hover:bg-gray-100 rounded transition-colors">
-                    <Plus size={16} />
-                  </button>
-                  <span className="w-4 text-center font-bold text-gray-800">{item.quantity}</span>
-                  <button onClick={() => updateQuantity(item.id, -1)} className="p-1 hover:bg-gray-100 rounded transition-colors">
-                    <Minus size={16} />
+          {cart.map(item => {
+            const effectiveUnitPrice = getItemEffectiveUnitPrice(item);
+            const itemLineTotal = effectiveUnitPrice * item.quantity;
+            const hasExtras = item.extras && item.extras.length > 0;
+
+            return (
+              <div key={item.id} className="flex flex-col gap-2 p-3 bg-gray-50 rounded-xl border border-gray-100 transition-all hover:border-gray-200">
+                <div className="flex justify-between items-start">
+                  <div className="flex flex-col">
+                    <span className="font-bold text-gray-900 text-sm">{item.name}</span>
+                    {item.variantName && (
+                      <span className="inline-block mt-0.5 text-[11px] font-medium text-emerald-800 bg-emerald-100/80 px-2 py-0.5 rounded-md border border-emerald-200/50 self-start">
+                        {item.variantName}
+                      </span>
+                    )}
+                  </div>
+                  <button onClick={() => removeFromCart(item.id)} className="text-red-500 hover:bg-red-100 p-1 rounded transition-colors" title="حذف از سبد">
+                    <Trash2 size={16} />
                   </button>
                 </div>
+
+                {/* Attached Extras Badges */}
+                {hasExtras && (
+                  <div className="flex flex-wrap gap-1 mt-0.5">
+                    {item.extras!.map(extra => (
+                      <span 
+                        key={extra.extraId}
+                        className="inline-flex items-center gap-1 text-[11px] font-medium bg-[#164237]/10 text-[#0a221b] px-2 py-0.5 rounded-md border border-[#164237]/20"
+                      >
+                        <span>↳ {extra.name}</span>
+                        <span className="text-[#164237] font-semibold">({extra.price > 0 ? `+${extra.price.toLocaleString()}` : 'رایگان'})</span>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveExtraFromItem(item.id, extra.extraId)}
+                          className="p-0.5 text-gray-400 hover:text-red-600 rounded-full transition-colors me-0.5"
+                          title="حذف این افزودنی"
+                        >
+                          <X size={12} />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+
+                {/* Modifier trigger button */}
+                <div className="flex items-center justify-between">
+                  <button
+                    type="button"
+                    onClick={() => handleOpenExtraSelector(item)}
+                    className="inline-flex items-center gap-1.5 text-xs font-bold text-[#164237] hover:text-[#0a221b] bg-emerald-50 hover:bg-emerald-100/80 border border-emerald-200/60 px-2.5 py-1 rounded-lg transition-colors cursor-pointer"
+                  >
+                    <Sparkles size={12} className="text-[#d4af37]" />
+                    <span>{hasExtras ? 'ویرایش افزودنی‌ها' : '+ افزودنی / Extra'}</span>
+                  </button>
+                </div>
+
+                <div className="flex justify-between items-center text-sm pt-1 border-t border-gray-100">
+                  <div className="flex flex-col">
+                    <span className="text-gray-900 font-bold">{itemLineTotal.toLocaleString()} تومان</span>
+                    {hasExtras && (
+                      <span className="text-[10px] text-gray-500">
+                        واحد: {effectiveUnitPrice.toLocaleString()} (پایه {item.price.toLocaleString()})
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 bg-white rounded-lg border shadow-sm">
+                    <button onClick={() => updateQuantity(item.id, 1)} className="p-1 hover:bg-gray-100 rounded transition-colors">
+                      <Plus size={16} />
+                    </button>
+                    <span className="w-4 text-center font-bold text-gray-800">{item.quantity}</span>
+                    <button onClick={() => updateQuantity(item.id, -1)} className="p-1 hover:bg-gray-100 rounded transition-colors">
+                      <Minus size={16} />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="mt-1">
+                  <input 
+                    type="text"
+                    placeholder="یادداشت (توضیحات مشتری)"
+                    value={item.note || ''}
+                    onChange={(e) => {
+                      setCart(prev => prev.map(i => i.id === item.id ? { ...i, note: e.target.value } : i));
+                    }}
+                    className="w-full text-xs p-1.5 bg-white border border-gray-200 rounded focus:outline-none focus:border-emerald-500 italic placeholder:not-italic"
+                  />
+                </div>
               </div>
-              <div className="mt-1">
-                <input 
-                  type="text"
-                  placeholder="یادداشت (توضیحات مشتری)"
-                  value={item.note || ''}
-                  onChange={(e) => {
-                    setCart(prev => prev.map(i => i.id === item.id ? { ...i, note: e.target.value } : i));
-                  }}
-                  className="w-full text-xs p-1.5 bg-white border border-gray-200 rounded focus:outline-none focus:border-emerald-500 italic placeholder:not-italic"
-                />
-              </div>
-            </div>
-          ))}
+            );
+          })}
           {cart.length === 0 && (
             <div className="text-center text-gray-400 py-10">سبد خرید خالی است</div>
           )}
@@ -638,6 +731,18 @@ export default function AdminPOS() {
           </Dialog.Content>
         </Dialog.Portal>
       </Dialog.Root>
+
+      {/* Extra Selector Modal */}
+      {selectedCartItemForExtras && (
+        <ExtraSelectorModal
+          isOpen={!!selectedCartItemForExtras}
+          onClose={() => setSelectedCartItemForExtras(null)}
+          itemName={selectedCartItemForExtras.name}
+          variantName={selectedCartItemForExtras.variantName}
+          initialSelectedExtras={selectedCartItemForExtras.extras || []}
+          onConfirm={handleConfirmExtras}
+        />
+      )}
 
     </div>
   );

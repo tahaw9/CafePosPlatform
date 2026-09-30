@@ -6,6 +6,12 @@ import toast from 'react-hot-toast';
 export type OrderStatus = 'pending' | 'preparing' | 'completed' | 'cancelled';
 export type PaymentMethod = 'card' | 'cash' | 'transfer' | null;
 
+export interface OrderItemExtra {
+  extraId: string;
+  name: string;
+  price: number;
+}
+
 export interface OrderItem {
   id: string; // Cart item ID: composite key
   productId: string;
@@ -15,6 +21,8 @@ export interface OrderItem {
   price: number;
   quantity: number;
   note?: string;
+  extras?: OrderItemExtra[];
+  extraIds?: string[];
 }
 
 export interface Order {
@@ -79,7 +87,13 @@ const mapBackendOrder = (o: OrderDto): Order => ({
     name: item.productName,
     price: item.unitPrice,
     quantity: item.quantity,
-    note: item.note || undefined
+    note: item.note || undefined,
+    extras: item.extras?.map(e => ({
+      extraId: e.extraId,
+      name: e.name,
+      price: e.price
+    })) || [],
+    extraIds: item.extraIds || item.extras?.map(e => e.extraId) || []
   }))
 });
 
@@ -137,7 +151,13 @@ export const useOrderStore = create<OrderState>((set, get) => ({
           variantName: item.variantName || null,
           unitPrice: item.price,
           quantity: item.quantity,
-          note: item.note || null
+          note: item.note || null,
+          extraIds: item.extraIds || item.extras?.map(e => e.extraId) || [],
+          extras: item.extras?.map(e => ({
+            extraId: e.extraId,
+            name: e.name,
+            price: e.price
+          })) || []
         }))
       });
 
@@ -370,7 +390,13 @@ export const useOrderStore = create<OrderState>((set, get) => ({
           variantName: item.variantName || null,
           unitPrice: item.price,
           quantity: item.quantity,
-          note: item.note || null
+          note: item.note || null,
+          extraIds: item.extraIds || item.extras?.map(e => e.extraId) || [],
+          extras: item.extras?.map(e => ({
+            extraId: e.extraId,
+            name: e.name,
+            price: e.price
+          })) || []
         }))
       });
 

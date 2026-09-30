@@ -14,6 +14,7 @@ public interface IApplicationDbContext
     DbSet<Category> Categories { get; }
     DbSet<Order> Orders { get; }
     DbSet<OrderItem> OrderItems { get; }
+    DbSet<Extra> Extras { get; }
     DbSet<Table> Tables { get; }
     DbSet<UnpaidOrder> UnpaidOrders { get; }
     DatabaseFacade Database { get; }    

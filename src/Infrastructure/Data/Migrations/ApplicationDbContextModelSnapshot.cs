@@ -50,6 +50,59 @@ namespace CafePosBackend.Infrastructure.Data.Migrations
                     b.ToTable("Categories");
                 });
 
+            modelBuilder.Entity("CafePosBackend.Domain.Entities.Extra", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("Created")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("DisplayOrder")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0);
+
+                    b.Property<bool>("IsAvailable")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true);
+
+                    b.Property<bool>("IsDeleted")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
+                    b.Property<DateTimeOffset>("LastModified")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("LastModifiedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<decimal>("Price")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DisplayOrder");
+
+                    b.HasIndex("IsAvailable");
+
+                    b.HasIndex("IsDeleted");
+
+                    b.ToTable("Extras", (string)null);
+                });
+
             modelBuilder.Entity("CafePosBackend.Domain.Entities.Order", b =>
                 {
                     b.Property<Guid>("Id")
@@ -593,6 +646,36 @@ namespace CafePosBackend.Infrastructure.Data.Migrations
                         .WithMany()
                         .HasForeignKey("ProductVariantId")
                         .OnDelete(DeleteBehavior.SetNull);
+
+                    b.OwnsMany("CafePosBackend.Domain.ValueObjects.OrderItemExtra", "Extras", b1 =>
+                        {
+                            b1.Property<Guid>("OrderItemId");
+
+                            b1.Property<int>("__synthesizedOrdinal")
+                                .ValueGeneratedOnAdd();
+
+                            b1.Property<Guid>("ExtraId");
+
+                            b1.Property<string>("Name")
+                                .IsRequired()
+                                .HasMaxLength(100);
+
+                            b1.Property<decimal>("Price")
+                                .HasPrecision(18, 2);
+
+                            b1.HasKey("OrderItemId", "__synthesizedOrdinal");
+
+                            b1.ToTable("OrderItems");
+
+                            b1
+                                .ToJson("Extras")
+                                .HasColumnType("jsonb");
+
+                            b1.WithOwner()
+                                .HasForeignKey("OrderItemId");
+                        });
+
+                    b.Navigation("Extras");
 
                     b.Navigation("Order");
 

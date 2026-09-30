@@ -94,6 +94,9 @@ export default function ItemModal({ item, onClose }: ItemModalProps) {
           transition={{ type: "spring", damping: 25, stiffness: 300 }}
           className="relative w-full max-w-md bg-[#0f3229] border border-[#8fa8a4]/30 rounded-t-3xl sm:rounded-3xl flex flex-col overflow-hidden max-h-[90vh] shadow-2xl"
         >
+          {/* Mobile Drag Affordance Pill */}
+          <div className="w-12 h-1.5 bg-white/25 rounded-full mx-auto my-2.5 sm:hidden shrink-0" />
+
           {/* Header Image */}
           <div className="relative h-44 w-full shrink-0">
             <img 
@@ -111,7 +114,7 @@ export default function ItemModal({ item, onClose }: ItemModalProps) {
           </div>
 
           {/* Content Body */}
-          <div className="p-5 flex flex-col overflow-y-auto custom-scrollbar flex-1">
+          <div className="p-5 flex flex-col overflow-y-auto custom-scrollbar overscroll-contain flex-1">
             <div className="flex justify-between items-start mb-2">
               <h2 className="text-2xl font-bold text-cafe-text">{item.name}</h2>
               {!hasVariants && (
@@ -139,12 +142,14 @@ export default function ItemModal({ item, onClose }: ItemModalProps) {
                   {item.variants!.map((variant) => {
                     const isSelected = selectedVariant?.id === variant.id;
                     const isAvail = variant.isAvailable;
+                    const basePrice = item.price;
+                    const delta = variant.price - basePrice;
 
                     return (
                       <div
                         key={variant.id}
                         onClick={() => isAvail && setSelectedVariant(variant)}
-                        className={`relative rounded-2xl p-3.5 flex items-center justify-between border transition-all cursor-pointer select-none ${
+                        className={`relative rounded-2xl p-3.5 flex items-center justify-between border transition-all cursor-pointer select-none active:scale-[0.98] ${
                           !isAvail 
                             ? 'opacity-45 bg-[#0a221b]/40 border-gray-700 cursor-not-allowed'
                             : isSelected
@@ -158,7 +163,11 @@ export default function ItemModal({ item, onClose }: ItemModalProps) {
                               ? 'bg-cafe-accent border-cafe-accent text-[#0f3229]' 
                               : 'border-[#8fa8a4]/40 bg-transparent'
                           }`}>
-                            {isSelected && <CheckCircle2 size={16} className="text-[#0f3229] fill-current" />}
+                            {isSelected && (
+                              <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', stiffness: 500, damping: 25 }}>
+                                <CheckCircle2 size={16} className="text-[#0f3229] fill-current" />
+                              </motion.div>
+                            )}
                           </div>
                           <div>
                             <span className={`font-bold text-sm block ${isSelected ? 'text-cafe-text' : 'text-gray-200'}`}>
@@ -169,9 +178,16 @@ export default function ItemModal({ item, onClose }: ItemModalProps) {
 
                         <div className="flex items-center gap-2">
                           {isAvail ? (
-                            <span className="font-bold text-cafe-item text-sm">
-                              {variant.price.toLocaleString('fa-IR')} <span className="text-[10px] font-normal opacity-80">تومان</span>
-                            </span>
+                            <div className="flex items-center gap-1.5">
+                              {delta !== 0 && (
+                                <span className="text-[11px] font-medium text-cafe-accent bg-cafe-accent/10 px-2 py-0.5 rounded-full border border-cafe-accent/20">
+                                  {delta > 0 ? `+${delta.toLocaleString('fa-IR')}` : delta.toLocaleString('fa-IR')}
+                                </span>
+                              )}
+                              <span className="font-bold text-cafe-item text-sm">
+                                {variant.price.toLocaleString('fa-IR')} <span className="text-[10px] font-normal opacity-80">تومان</span>
+                              </span>
+                            </div>
                           ) : (
                             <span className="text-xs text-red-400 bg-red-500/10 border border-red-500/20 px-2 py-0.5 rounded-full flex items-center gap-1 font-medium">
                               <AlertCircle size={12} />
