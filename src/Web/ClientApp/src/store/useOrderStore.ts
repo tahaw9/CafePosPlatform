@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { getOrders, createOrder, payOrder, updateOrderStatus, OrderDto, getOrderById, updateOrder } from '../lib/orderService';
+import { getOrders, createOrder, payOrder, updateOrderStatus as apiUpdateOrderStatus, OrderDto, getOrderById, updateOrder } from '../lib/orderService';
 import { getTables, updateTableStatus, createTable as apiCreateTable, updateTable as apiUpdateTable, deleteTable as apiDeleteTable, CreateTableRequest, UpdateTableRequest } from '../lib/tableService';
 import toast from 'react-hot-toast';
 
@@ -191,26 +191,28 @@ export const useOrderStore = create<OrderState>((set, get) => ({
   },
 
   updateOrderStatus: async (id, status) => {
-    if (get().isSubmitting) return;
-    set({ isSubmitting: true });
+    const previousOrders = get().orders;
+    const currentOrder = previousOrders.find(o => o.id === id);
+    if (!currentOrder || currentOrder.status === status) return;
+
+    // Optimistic UI update: instantly update order status in store
+    set((state) => ({
+      orders: state.orders.map(o => 
+        o.id === id ? { ...o, status, updatedAt: Date.now() } : o
+      )
+    }));
 
     try {
-      await updateOrderStatus(id, status);
-
-      set((state) => ({
-        orders: state.orders.map(o => 
-          o.id === id ? { ...o, status, updatedAt: Date.now() } : o
-        )
-      }));
+      await apiUpdateOrderStatus(id, status);
     } catch (error: any) {
+      // Rollback to previous orders if server request fails
+      set({ orders: previousOrders });
       const message = error?.response?.data?.title
         || error?.response?.data?.detail
         || error?.message
         || 'خطا در بروزرسانی وضعیت سفارش';
       toast.error(message);
       throw error;
-    } finally {
-      set({ isSubmitting: false });
     }
   },
 
