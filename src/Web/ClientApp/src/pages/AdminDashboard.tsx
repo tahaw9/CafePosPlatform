@@ -1,25 +1,40 @@
-import { MessageSquare, Info, Printer, Loader2 } from 'lucide-react';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import {
+  DndContext,
+  DragOverlay,
+  DragStartEvent,
+  DragEndEvent,
+  MouseSensor,
+  TouchSensor,
+  KeyboardSensor,
+  useSensor,
+  useSensors,
+  pointerWithin,
+  rectIntersection,
+  CollisionDetection
+} from '@dnd-kit/core';
 import { useOrderStore, OrderStatus, PaymentMethod, Order } from '../store/useOrderStore';
 import toast from 'react-hot-toast';
-import Dropdown from '../components/Admin/Dropdown';
 import OrderDetailModal from '../components/Admin/OrderDetailModal';
 import * as Dialog from '@radix-ui/react-dialog';
 import { useUnpaidOrderStore } from '../store/useUnpaidOrderStore';
 import { printReceiptViaIframe } from '../lib/printUtils';
 import { usePcPosStore } from '../store/usePcPosStore';
+import KanbanColumn from '../components/Admin/KanbanColumn';
+import KanbanOrderCard from '../components/Admin/KanbanOrderCard';
 
-const STATUS_COLUMNS = [
+const STATUS_COLUMNS: { id: OrderStatus; title: string; color: string }[] = [
   { id: 'pending', title: 'در انتظار', color: 'bg-red-100 text-red-800 border-red-200' },
   { id: 'preparing', title: 'در حال آماده‌سازی', color: 'bg-amber-100 text-amber-800 border-amber-200' },
   { id: 'completed', title: 'تکمیل شده', color: 'bg-green-100 text-green-800 border-green-200' },
 ];
 
 export default function AdminDashboard() {
-  const { orders, fetchInitialData, updateOrderStatus, isLoading, isSubmitting } = useOrderStore();
+  const { orders, fetchInitialData, updateOrderStatus, isLoading } = useOrderStore();
   const navigate = useNavigate();
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [activeOrder, setActiveOrder] = useState<Order | null>(null);
 
   const { flagOrder, isSubmitting: isFlagging, unpaidOrders, fetchUnpaidOrders } = useUnpaidOrderStore();
   const [isUnpaidModalOpen, setIsUnpaidModalOpen] = useState(false);
@@ -28,6 +43,33 @@ export default function AdminDashboard() {
   const [debtorPhone, setDebtorPhone] = useState('');
   
   const [printingOrder, setPrintingOrder] = useState<Order | null>(null);
+
+  // DnD Sensors: 8px drag threshold for mouse, 200ms press with 6px tolerance for touchscreens (prevents scroll interference)
+  const mouseSensor = useSensor(MouseSensor, {
+    activationConstraint: {
+      distance: 8,
+    },
+  });
+
+  const touchSensor = useSensor(TouchSensor, {
+    activationConstraint: {
+      delay: 200,
+      tolerance: 6,
+    },
+  });
+
+  const keyboardSensor = useSensor(KeyboardSensor);
+
+  const sensors = useSensors(mouseSensor, touchSensor, keyboardSensor);
+
+  // Collision detection: prioritizes pointer location within droppable columns, falling back to bounding rect intersection
+  const collisionDetectionStrategy: CollisionDetection = (args) => {
+    const pointerCollisions = pointerWithin(args);
+    if (pointerCollisions.length > 0) {
+      return pointerCollisions;
+    }
+    return rectIntersection(args);
+  };
 
   const handlePrint = (order: Order) => {
     setPrintingOrder(order);
@@ -43,7 +85,6 @@ export default function AdminDashboard() {
       orderCode: order.orderCode
     });
 
-    // Clear loading state after iframe closes or shortly after
     setTimeout(() => setPrintingOrder(null), 1000);
   };
 
@@ -58,8 +99,37 @@ export default function AdminDashboard() {
         await updateOrderStatus(id, 'cancelled');
         toast.success('سفارش لغو شد');
       } catch {
-        // Error toast is already handled by the store
+        // Error toast is handled by the store
       }
+    }
+  };
+
+  const handlePaymentChange = async (order: Order, val: string) => {
+    if (val === 'unpaid') {
+      setTargetUnpaidOrderId(order.id);
+      setIsUnpaidModalOpen(true);
+      return;
+    }
+
+    if (val === 'card' && usePcPosStore.getState().isPcPosEnabled) {
+      const success = await usePcPosStore.getState().triggerPayment(order.id, order.total);
+      if (success) {
+        try {
+          await useOrderStore.getState().markAsPaid(order.id, 'card');
+          toast.success('پرداخت تایید شد');
+          usePcPosStore.getState().reset();
+        } catch {
+          // Handled
+        }
+      }
+      return;
+    }
+
+    try {
+      await useOrderStore.getState().markAsPaid(order.id, val as PaymentMethod);
+      toast.success('پرداخت تایید شد');
+    } catch {
+      // Handled
     }
   };
 
@@ -83,8 +153,42 @@ export default function AdminDashboard() {
       setDebtorPhone('');
       setTargetUnpaidOrderId(null);
     } catch (error) {
-      // Error handled by store
+      // Handled
     }
+  };
+
+  const activeOrders = useMemo(() => orders.filter(o => o.status !== 'cancelled'), [orders]);
+  const unpaidOrderIds = useMemo(() => new Set(unpaidOrders.map(uo => uo.orderId)), [unpaidOrders]);
+
+  const handleDragStart = (event: DragStartEvent) => {
+    const order = activeOrders.find(o => o.id === event.active.id);
+    if (order) {
+      setActiveOrder(order);
+    }
+  };
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+    setActiveOrder(null);
+
+    if (!over) return;
+
+    const targetStatus = over.id as OrderStatus;
+    const orderId = String(active.id);
+    const order = activeOrders.find(o => o.id === orderId);
+
+    if (!order || order.status === targetStatus) return;
+
+    try {
+      await updateOrderStatus(orderId, targetStatus);
+      toast.success('وضعیت سفارش بروزرسانی شد');
+    } catch {
+      // Handled with rollback in store
+    }
+  };
+
+  const handleDragCancel = () => {
+    setActiveOrder(null);
   };
 
   if (isLoading && orders.length === 0) {
@@ -98,177 +202,63 @@ export default function AdminDashboard() {
     );
   }
 
-  // Exclude cancelled from the visible kanban board typically, or we could add a column
-  const activeOrders = orders.filter(o => o.status !== 'cancelled');
-
   return (
     <div className="p-6 h-full flex flex-col">
       <div className="mb-6 flex justify-between items-center">
         <h1 className="text-2xl font-black text-[#0f3229]">داشبورد سفارشات زنده</h1>
       </div>
 
-      <div className="flex-1 flex gap-6 overflow-x-auto pb-4">
-        {STATUS_COLUMNS.map(column => {
-          const columnOrders = activeOrders.filter(o => o.status === column.id);
-          
-          return (
-            <div key={column.id} className="flex-1 min-w-[300px] flex flex-col bg-gray-100 rounded-2xl p-4">
-              <div className="flex items-center justify-between mb-4 px-2">
-                <h2 className="font-bold text-gray-800">{column.title}</h2>
-                <span className={`px-3 py-1 rounded-full text-sm font-bold border ${column.color}`}>
-                  {columnOrders.length}
-                </span>
-              </div>
-              
-              <div className="flex-1 overflow-y-auto space-y-4 ps-1 custom-scrollbar">
-                {columnOrders.map(order => (
-                  <div key={order.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col">
-                    <div className="flex justify-between items-start mb-3">
-                      <div>
-                        <button 
-                          onClick={() => setSelectedOrder(order)}
-                          className="font-bold text-lg hover:text-[#0f3229] transition-colors flex items-center gap-1"
-                        >
-                          #{order.orderCode} <Info size={16} className="text-gray-400" />
-                        </button>
-                        <div className="text-sm text-gray-500 mt-1">
-                          {order.tableNumber ? `میز ${order.tableNumber}` : 'بیرون‌بر'}
-                        </div>
-                      </div>
-                      <div className="text-end flex flex-col items-end gap-1">
-                        <div className="text-xs text-gray-400">
-                          {new Date(order.createdAt).toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' })}
-                        </div>
-                        {order.isPaid ? (
-                          <span className="inline-block mt-1 bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs">پرداخت شده</span>
-                        ) : unpaidOrders.some(uo => uo.orderId === order.id) ? (
-                          <span className="inline-block mt-1 bg-red-100 text-red-700 font-bold px-2 py-0.5 rounded text-xs border border-red-200">عدم پرداخت (نسیه)</span>
-                        ) : (
-                          <div className="mt-1">
-                            <Dropdown 
-                              value="" 
-                              onChange={async (val) => {
-                                if (val === 'unpaid') {
-                                  setTargetUnpaidOrderId(order.id);
-                                  setIsUnpaidModalOpen(true);
-                                  return;
-                                }
+      <DndContext
+        sensors={sensors}
+        collisionDetection={collisionDetectionStrategy}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+        onDragCancel={handleDragCancel}
+      >
+        <div className="flex-1 flex gap-6 overflow-x-auto pb-4">
+          {STATUS_COLUMNS.map(column => (
+            <KanbanColumn
+              key={column.id}
+              column={column}
+              orders={activeOrders.filter(o => o.status === column.id)}
+              activeOrder={activeOrder}
+              unpaidOrderIds={unpaidOrderIds}
+              printingOrderId={printingOrder?.id || null}
+              onSelectOrder={setSelectedOrder}
+              onPrint={handlePrint}
+              onEdit={(orderId) => navigate(`/admin/pos?orderId=${orderId}`)}
+              onCancel={handleCancelOrder}
+              onStatusChange={async (orderId, newStatus) => {
+                try {
+                  await updateOrderStatus(orderId, newStatus);
+                  toast.success('وضعیت سفارش بروزرسانی شد');
+                } catch {
+                  // Handled
+                }
+              }}
+              onPaymentChange={handlePaymentChange}
+            />
+          ))}
+        </div>
 
-                                if (val === 'card' && usePcPosStore.getState().isPcPosEnabled) {
-                                  const success = await usePcPosStore.getState().triggerPayment(order.id, order.total);
-                                  if (success) {
-                                    try {
-                                      await useOrderStore.getState().markAsPaid(order.id, 'card');
-                                      toast.success('پرداخت تایید شد');
-                                      usePcPosStore.getState().reset();
-                                    } catch {
-                                      // Error toast is already handled by the store
-                                    }
-                                  }
-                                  return;
-                                }
-
-                                try {
-                                  await useOrderStore.getState().markAsPaid(order.id, val as PaymentMethod);
-                                  toast.success('پرداخت تایید شد');
-                                } catch {
-                                  // Error toast is already handled by the store
-                                }
-                              }}
-                              placeholder="ثبت پرداخت ▼"
-                              options={[
-                                { value: 'card', label: '💳 کارتخوان' },
-                                { value: 'cash', label: '💵 نقد' },
-                                { value: 'transfer', label: '🏦 کارت به کارت' },
-                                { value: 'unpaid', label: '❌ عدم پرداخت (نسیه)' }
-                              ]}
-                              triggerClassName="bg-red-100 !text-red-700 border-none hover:bg-red-200 !px-2 !py-0.5 !rounded !text-xs transition-colors h-auto focus:ring-0"
-                            />
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    
-                    <ul className="text-sm space-y-2 mb-4 bg-gray-50 p-3 rounded-lg flex-1">
-                      {order.items.map(item => (
-                        <li key={item.id} className="flex flex-col border-b border-gray-100 last:border-0 pb-2 last:pb-0">
-                          <div className="flex justify-between">
-                            <span className="text-gray-700 font-medium"><span className="text-gray-400 ms-1">{item.quantity}x</span> {item.name}</span>
-                          </div>
-                          {item.note && (
-                            <div className="flex items-start mt-1.5 p-2 bg-[#8fa8a4]/15 rounded-md">
-                              <MessageSquare className="w-3.5 h-3.5 ms-1.5 mt-0.5 text-[#0f3229] shrink-0" />
-                              <span className="text-xs italic text-gray-800 font-medium leading-relaxed">{item.note}</span>
-                            </div>
-                          )}
-                        </li>
-                      ))}
-                    </ul>
-
-                    <div className="flex flex-col gap-2 mt-auto pt-2">
-                      <Dropdown 
-                        value={order.status}
-                        onChange={async (val) => {
-                          try {
-                            await updateOrderStatus(order.id, val as OrderStatus);
-                            toast.success('وضعیت سفارش بروزرسانی شد');
-                          } catch {
-                            // Error toast is already handled by the store
-                          }
-                        }}
-                        options={[
-                          { value: 'pending', label: '⏳ در انتظار' },
-                          { value: 'preparing', label: '🔥 آماده‌سازی' },
-                          { value: 'completed', label: '✅ تکمیل شده' }
-                        ]}
-                        triggerClassName={`w-full py-2 !rounded-lg text-sm font-medium border-0 opacity-90 hover:opacity-100 ${
-                          order.status === 'pending' ? 'bg-red-100 !text-red-700' :
-                          order.status === 'preparing' ? 'bg-amber-100 !text-amber-800' :
-                          'bg-green-100 !text-green-800'
-                        }`}
-                      />
-                      
-                      <div className="flex gap-2">
-                        <button 
-                          onClick={() => handlePrint(order)}
-                          disabled={printingOrder?.id === order.id}
-                          className={`flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 py-2 rounded-lg text-sm font-medium transition-colors border border-gray-200 flex items-center justify-center gap-2 ${printingOrder?.id === order.id ? 'opacity-50 cursor-not-allowed' : ''}`}
-                        >
-                          {printingOrder?.id === order.id ? <Loader2 size={16} className="animate-spin" /> : <Printer size={16} />}
-                          چاپ
-                        </button>
-                        {column.id !== 'completed' && (
-                          <button 
-                            onClick={() => navigate(`/admin/pos?orderId=${order.id}`)}
-                            className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 py-2 rounded-lg text-sm font-medium transition-colors border border-gray-200"
-                          >
-                            ویرایش
-                          </button>
-                        )}
-                      </div>
-                      
-                      {column.id !== 'completed' && (
-                        <button 
-                          onClick={() => handleCancelOrder(order.id)}
-                          className="w-full bg-red-50 hover:bg-red-100 text-red-600 py-2 rounded-lg text-sm font-medium transition-colors border border-red-200"
-                        >
-                          لغو سفارش
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                ))}
-                
-                {columnOrders.length === 0 && (
-                  <div className="text-center py-10 text-gray-400 text-sm">
-                    سفارشی در این مرحله نیست
-                  </div>
-                )}
-              </div>
-            </div>
-          );
-        })}
-      </div>
+        <DragOverlay dropAnimation={{ duration: 200, easing: 'cubic-bezier(0.18, 0.67, 0.6, 1.22)' }}>
+          {activeOrder ? (
+            <KanbanOrderCard
+              order={activeOrder}
+              columnId={activeOrder.status}
+              isOverlay={true}
+              isUnpaid={unpaidOrderIds.has(activeOrder.id)}
+              isPrinting={printingOrder?.id === activeOrder.id}
+              onSelectOrder={() => {}}
+              onPrint={() => {}}
+              onEdit={() => {}}
+              onCancel={() => {}}
+              onStatusChange={() => {}}
+              onPaymentChange={() => {}}
+            />
+          ) : null}
+        </DragOverlay>
+      </DndContext>
 
       <OrderDetailModal 
         order={selectedOrder}
